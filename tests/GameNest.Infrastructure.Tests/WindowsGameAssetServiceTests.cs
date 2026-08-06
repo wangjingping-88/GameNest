@@ -41,6 +41,7 @@ public sealed class WindowsGameAssetServiceTests
         var paths = GameNestDataPaths.CreateForRoot(directory.Path);
         var service = new WindowsGameAssetService(
             new WindowsImageAssetCache(paths),
+            new HttpClient(),
             NullLogger<WindowsGameAssetService>.Instance);
         var missingPath = Path.Combine(directory.Path, "已移除.exe");
         var inspection = new LocalGameFileInspection(

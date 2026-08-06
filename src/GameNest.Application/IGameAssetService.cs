@@ -18,4 +18,12 @@ public interface IGameAssetService
         Guid gameId,
         string sourcePath,
         CancellationToken cancellationToken);
+
+    Task<GameAsset> ImportCoverFromUriAsync(
+        Guid gameId,
+        Uri sourceUri,
+        string sourceName,
+        CancellationToken cancellationToken) =>
+        Task.FromException<GameAsset>(
+            new NotSupportedException("当前资产服务不支持下载在线封面。"));
 }

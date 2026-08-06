@@ -38,6 +38,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly SemaphoreSlim _themeChangeGate = new(1, 1);
     private readonly SemaphoreSlim _overlaySettingsGate = new(1, 1);
     private readonly CancellationTokenSource _viewModelLifetime = new();
+    private CancellationTokenSource? _statusMessageLifetime;
     private SynchronizationContext? _uiContext;
     private Task? _sessionClockTask;
     private OverlayProfile? _globalOverlayProfile;
@@ -117,6 +118,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedGame))]
     public partial GameCardViewModel? SelectedGame { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedGames))]
+    [NotifyPropertyChangedFor(nameof(SelectedGameCountText))]
+    [NotifyPropertyChangedFor(nameof(SelectionModeButtonText))]
+    [NotifyPropertyChangedFor(nameof(RemoveSelectedGamesText))]
+    public partial bool IsSelectionMode { get; set; }
 
     [ObservableProperty]
     public partial bool IsOverlayEnabled { get; set; } = true;
@@ -279,7 +287,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public event Action<Uri>? OpenUpdatePageRequested;
 
+    public event Action<GameCardViewModel>? FocusGameRequested;
+
     public ObservableCollection<GameCardViewModel> Games { get; }
+
+    public ObservableCollection<RecentPlayGroupViewModel> RecentPlayGroups { get; } = [];
 
     [ObservableProperty]
     public partial ObservableCollection<GameCardViewModel> DisplayedGames { get; set; }
@@ -327,7 +339,89 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public bool HasSelectedGame => SelectedGame is not null;
 
+    public bool HasSelectedGames => Games.Any(static game => game.IsSelected);
+
+    public string SelectedGameCountText => $"已选择 {Games.Count(static game => game.IsSelected)} 项";
+
+    public string SelectionModeButtonText => IsSelectionMode ? "完成选择" : "多选";
+
+    public string RemoveSelectedGamesText => HasSelectedGames
+        ? $"移除已选（{Games.Count(static game => game.IsSelected)}）"
+        : "移除已选";
+
+    public void UpdateGameSelection(IEnumerable<GameCardViewModel> selectedGames)
+    {
+        ArgumentNullException.ThrowIfNull(selectedGames);
+
+        var selectedIds = selectedGames.Select(static game => game.Id).ToHashSet();
+        foreach (var game in Games)
+        {
+            game.IsSelected = selectedIds.Contains(game.Id);
+        }
+
+        OnPropertyChanged(nameof(HasSelectedGames));
+        OnPropertyChanged(nameof(SelectedGameCountText));
+        OnPropertyChanged(nameof(RemoveSelectedGamesText));
+    }
+
+    public bool IsLibraryPage => SelectedNavigationItem?.Label == "游戏库";
+
+    public bool IsRecentPage => SelectedNavigationItem?.Label == "最近游玩";
+
+    public bool IsNotRecentPage => !IsRecentPage;
+
+    public string CollectionActionText => IsLibraryPage ? "添加游戏" : "前往游戏库";
+
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+
+    partial void OnStatusMessageChanged(string? value)
+    {
+        _statusMessageLifetime?.Cancel();
+        _statusMessageLifetime?.Dispose();
+        _statusMessageLifetime = null;
+
+        if (string.IsNullOrWhiteSpace(value) || value.StartsWith("正在", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var lifetime = CancellationTokenSource.CreateLinkedTokenSource(_viewModelLifetime.Token);
+        _statusMessageLifetime = lifetime;
+        _ = ClearStatusMessageAfterDelayAsync(value, lifetime.Token);
+    }
+
+    private async Task ClearStatusMessageAfterDelayAsync(string message, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(6), cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (_uiContext is null)
+        {
+            if (string.Equals(StatusMessage, message, StringComparison.Ordinal))
+            {
+                StatusMessage = null;
+            }
+
+            return;
+        }
+
+        _uiContext.Post(
+            static state =>
+            {
+                var request = (StatusMessageClearRequest)state!;
+                if (string.Equals(request.ViewModel.StatusMessage, request.Message, StringComparison.Ordinal))
+                {
+                    request.ViewModel.StatusMessage = null;
+                }
+            },
+            new StatusMessageClearRequest(this, message));
+    }
 
     public bool IsMaintenanceIdle => !IsMaintenanceBusy;
 
@@ -350,7 +444,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public bool HasLibraryError => !string.IsNullOrWhiteSpace(LibraryErrorMessage);
 
     public GameCardViewModel? HeroGame => Games
-        .OrderByDescending(static game => game.LastPlayedUtc ?? game.DateAddedUtc)
+        .Where(static game => game.LastPlayedUtc is not null)
+        .OrderByDescending(static game => game.LastPlayedUtc)
         .FirstOrDefault();
 
     public bool HasHeroGame => HeroGame is not null;
@@ -511,9 +606,17 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 return false;
             }
 
+            var previousIndex = DisplayedGames.IndexOf(card);
             Games.Remove(card);
-            SelectedGame = null;
             ApplyFilter();
+            var next = previousIndex >= 0 && DisplayedGames.Count > 0
+                ? DisplayedGames[Math.Min(previousIndex, DisplayedGames.Count - 1)]
+                : null;
+            SelectedGame = next;
+            if (next is not null)
+            {
+                FocusGameRequested?.Invoke(next);
+            }
             StatusMessage = $"已从游戏库移除“{card.Title}”；原始游戏文件未被删除。";
             return true;
         }
@@ -603,6 +706,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _gameLibraryService.RuntimeStatusChanged -= HandleRuntimeStatusChanged;
         _overlayRuntimeCoordinator.StatusChanged -= HandleOverlayRuntimeStatusChanged;
         Scan.CandidatesImported -= HandleCandidatesImported;
+        _statusMessageLifetime?.Cancel();
+        _statusMessageLifetime?.Dispose();
         _viewModelLifetime.Cancel();
         Scan.Dispose();
         _themeChangeGate.Dispose();
@@ -637,6 +742,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         EmptyTitle = value.EmptyTitle;
         EmptyDescription = value.EmptyDescription;
         EmptyGlyph = value.EmptyGlyph;
+        IsSelectionMode = false;
+        ClearGameSelection();
+        OnPropertyChanged(nameof(IsLibraryPage));
+        OnPropertyChanged(nameof(IsRecentPage));
+        OnPropertyChanged(nameof(IsNotRecentPage));
+        OnPropertyChanged(nameof(CollectionActionText));
         ApplyFilter();
     }
 
@@ -663,6 +774,178 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void OpenLibrary() => SelectedNavigationItem = NavigationItems[1];
+
+    [RelayCommand]
+    private void OpenHeroDetails()
+    {
+        var hero = HeroGame;
+        SelectedNavigationItem = NavigationItems[1];
+        if (hero is null)
+        {
+            return;
+        }
+
+        SelectedGame = hero;
+        FocusGameRequested?.Invoke(hero);
+    }
+
+    [RelayCommand]
+    private void ToggleSelectionMode()
+    {
+        IsSelectionMode = !IsSelectionMode;
+        if (!IsSelectionMode)
+        {
+            ClearGameSelection();
+        }
+    }
+
+    public async Task<IReadOnlyList<GameCoverCandidate>> SearchOnlineCoversAsync(
+        GameCardViewModel card,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        try
+        {
+            IsBusy = true;
+            StatusMessage = $"正在查找“{card.Title}”的在线封面…";
+            return await _gameLibraryService.SearchOnlineCoversAsync(card.Title, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ReportGameOperationFailure("查找在线封面", exception);
+            return [];
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task<bool> ApplyOnlineCoverAsync(
+        GameCardViewModel card,
+        GameCoverCandidate candidate,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        ArgumentNullException.ThrowIfNull(candidate);
+        try
+        {
+            IsBusy = true;
+            StatusMessage = $"正在下载“{candidate.Title}”的封面…";
+            var updated = await _gameLibraryService.ApplyOnlineCoverAsync(card.Id, candidate, cancellationToken);
+            card.Update(updated);
+            NotifyCollectionStateChanged();
+            StatusMessage = $"已使用 Steam 商店封面：{candidate.Title}。";
+            return true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ReportGameOperationFailure("应用在线封面", exception);
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task<int> FetchAllMissingCoversAsync(CancellationToken cancellationToken)
+    {
+        var targets = Games
+            .Where(static game => !game.HasCover && !game.IsCoverManuallyDisabled)
+            .ToArray();
+        if (targets.Length == 0)
+        {
+            StatusMessage = "没有需要获取的游戏封面。";
+            return 0;
+        }
+
+        try
+        {
+            IsBusy = true;
+            var acquired = 0;
+            for (var index = 0; index < targets.Length; index++)
+            {
+                var card = targets[index];
+                StatusMessage = $"正在获取游戏封面（{index + 1}/{targets.Length}）：{card.Title}";
+                try
+                {
+                    var updated = await _gameLibraryService
+                        .RefreshAssetsAsync(card.Id, cancellationToken);
+                    card.Update(updated);
+                    if (card.HasCover)
+                    {
+                        acquired++;
+                    }
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    GameOperationFailed(_logger, $"获取“{card.Title}”的在线封面", exception);
+                }
+            }
+
+            NotifyCollectionStateChanged();
+            StatusMessage = acquired == 0
+                ? "未找到可自动使用的在线封面；可在游戏详情中手动选择候选。"
+                : $"已获取 {acquired} 个游戏封面。";
+            return acquired;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            StatusMessage = "获取游戏封面已取消。";
+            return 0;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task<int> RemoveSelectedGamesAsync(CancellationToken cancellationToken)
+    {
+        var selected = DisplayedGames.Where(static game => game.IsSelected).ToArray();
+        if (selected.Length == 0)
+        {
+            return 0;
+        }
+
+        var firstIndex = DisplayedGames.IndexOf(selected[0]);
+        try
+        {
+            IsBusy = true;
+            foreach (var card in selected)
+            {
+                if (await _gameLibraryService.RemoveAsync(card.Id, cancellationToken).ConfigureAwait(false))
+                {
+                    Games.Remove(card);
+                }
+            }
+
+            ApplyFilter();
+            ClearGameSelection();
+            IsSelectionMode = false;
+            var next = DisplayedGames.Count == 0
+                ? null
+                : DisplayedGames[Math.Min(firstIndex, DisplayedGames.Count - 1)];
+            SelectedGame = next;
+            if (next is not null)
+            {
+                FocusGameRequested?.Invoke(next);
+            }
+
+            StatusMessage = $"已从游戏库移除 {selected.Length} 项；原始游戏文件未被删除。";
+            return selected.Length;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ReportGameOperationFailure("批量移除游戏", exception);
+            return 0;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 
     [RelayCommand]
     private Task CheckForUpdatesAsync(CancellationToken cancellationToken) =>
@@ -1237,7 +1520,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         var selectedId = SelectedGame?.Id;
-        DisplayedGames = new ObservableCollection<GameCardViewModel>(filtered);
+        var displayed = filtered.ToArray();
+        DisplayedGames = new ObservableCollection<GameCardViewModel>(displayed);
+        RebuildRecentGroups(displayed);
 
         SelectedGame = selectedId is null
             ? DisplayedGames.FirstOrDefault()
@@ -1255,11 +1540,57 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
-    private GameCardViewModel CreateGameCard(Game game) =>
-        new(
+    private GameCardViewModel CreateGameCard(Game game)
+    {
+        var card = new GameCardViewModel(
             game,
-            (card, cancellationToken) => ToggleFavoriteAsync(card, cancellationToken),
-            (card, cancellationToken) => LaunchGameAsync(card, cancellationToken));
+            (item, cancellationToken) => ToggleFavoriteAsync(item, cancellationToken),
+            (item, cancellationToken) => LaunchGameAsync(item, cancellationToken));
+        card.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(GameCardViewModel.IsSelected))
+            {
+                OnPropertyChanged(nameof(HasSelectedGames));
+                OnPropertyChanged(nameof(SelectedGameCountText));
+                OnPropertyChanged(nameof(RemoveSelectedGamesText));
+            }
+        };
+        return card;
+    }
+
+    private void ClearGameSelection()
+    {
+        foreach (var card in Games.Where(static game => game.IsSelected))
+        {
+            card.IsSelected = false;
+        }
+    }
+
+    private void RebuildRecentGroups(IReadOnlyList<GameCardViewModel> displayed)
+    {
+        RecentPlayGroups.Clear();
+        if (!IsRecentPage)
+        {
+            return;
+        }
+
+        var today = DateTimeOffset.Now.Date;
+        var sevenDaysAgo = today.AddDays(-6);
+        var groups = displayed
+            .Where(static game => game.LastPlayedUtc is not null)
+            .GroupBy(game =>
+            {
+                var played = game.LastPlayedUtc!.Value.ToLocalTime().Date;
+                return played == today ? "今天" : played >= sevenDaysAgo ? "近 7 天" : "更早";
+            })
+            .OrderBy(group => group.Key switch { "今天" => 0, "近 7 天" => 1, _ => 2 });
+        foreach (var group in groups)
+        {
+            RecentPlayGroups.Add(new RecentPlayGroupViewModel(
+                group.Key,
+                group.OrderByDescending(static game => game.LastPlayedUtc)));
+        }
+    }
 
     private async Task RefreshGameAssetsAsync(
         GameCardViewModel card,
@@ -1291,6 +1622,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HeroGame));
         OnPropertyChanged(nameof(HasHeroGame));
         OnPropertyChanged(nameof(HasNoHeroGame));
+        OnPropertyChanged(nameof(HasSelectedGames));
+        OnPropertyChanged(nameof(SelectedGameCountText));
+        OnPropertyChanged(nameof(RemoveSelectedGamesText));
+        OnPropertyChanged(nameof(IsLibraryPage));
+        OnPropertyChanged(nameof(IsRecentPage));
+        OnPropertyChanged(nameof(IsNotRecentPage));
+        OnPropertyChanged(nameof(CollectionActionText));
     }
 
     private void HandleRuntimeStatusChanged(object? sender, GameProcessStatusChangedEventArgs args)
@@ -1470,4 +1808,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private sealed record OverlayRuntimeUpdate(
         MainWindowViewModel ViewModel,
         OverlayRuntimeStatusEventArgs EventArgs);
+
+    private sealed record StatusMessageClearRequest(
+        MainWindowViewModel ViewModel,
+        string Message);
 }

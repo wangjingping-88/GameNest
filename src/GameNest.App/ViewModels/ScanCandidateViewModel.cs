@@ -6,7 +6,7 @@ namespace GameNest.App.ViewModels;
 public sealed partial class ScanCandidateViewModel(GameCandidate model) : ObservableObject
 {
     [ObservableProperty]
-    public partial bool IsSelected { get; set; } = model.IsPrimary && model.Confidence != GameCandidateConfidence.Ignored;
+    public partial bool IsSelected { get; set; } = model.IsPrimary && model.Confidence == GameCandidateConfidence.High;
 
     public GameCandidate Model { get; } = model;
 

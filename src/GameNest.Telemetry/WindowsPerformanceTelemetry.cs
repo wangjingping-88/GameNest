@@ -117,7 +117,7 @@ public sealed class WindowsPerformanceTelemetry : IPerformanceTelemetry, IAsyncD
                 _current = initial;
             }
 
-            await _fpsProvider.StartAsync(target.PrimaryProcessId, lifetime.Token).ConfigureAwait(false);
+            await _fpsProvider.StartAsync(target.ConfirmedProcessIds, lifetime.Token).ConfigureAwait(false);
             lock (_syncRoot)
             {
                 _sessionTask = RunSessionAsync(target, lifetime.Token);

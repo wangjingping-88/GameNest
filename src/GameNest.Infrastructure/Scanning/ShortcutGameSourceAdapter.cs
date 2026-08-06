@@ -39,7 +39,9 @@ public sealed class ShortcutGameSourceAdapter(
                 var inspection = await fileInspector
                     .InspectAsync(shortcutPath, cancellationToken)
                     .ConfigureAwait(false);
-                if (IsExcluded(inspection.WorkingDirectory, context.ExcludedDirectories))
+                var root = FindRoot(context.Roots, inspection.ExecutablePath);
+                // A shortcut may live on the desktop, but its target must still be inside a user-approved root.
+                if (root is null || IsExcluded(inspection.WorkingDirectory, context.ExcludedDirectories))
                 {
                     continue;
                 }
@@ -51,7 +53,6 @@ public sealed class ShortcutGameSourceAdapter(
                     info.LastWriteTimeUtc);
                 context.PreviousCandidates.TryGetValue(inspection.ExecutablePath, out var previous);
                 var isUnchanged = previous?.Fingerprint == fingerprint && previous.AdapterId == Id;
-                var root = FindRoot(context.Roots, inspection.ExecutablePath);
                 candidates.Add(
                     new DiscoveredGame(
                         root?.Id,

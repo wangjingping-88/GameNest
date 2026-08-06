@@ -44,6 +44,7 @@
   </ItemGroup>
   <PropertyGroup>
     <OverlayOutputPath>$(MSBuildThisFileDirectory)..\GameNest.Overlay\bin\$(Configuration)\$(TargetFramework)\win-x64\</OverlayOutputPath>
+    <PresentMonSourcePath>D:\Program Files\GameNest\Tools\PresentMon\PresentMon-2.5.1-x64.exe</PresentMonSourcePath>
   </PropertyGroup>
   <Target Name="CopyOverlayRuntime" AfterTargets="Build">
     <ItemGroup>
@@ -52,6 +53,17 @@
     <Copy
       SourceFiles="@(OverlayRuntimeFiles)"
       DestinationFiles="@(OverlayRuntimeFiles->'$(OutDir)Overlay\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyPresentMonRuntime" AfterTargets="Build;Publish">
+    <Copy
+      SourceFiles="$(PresentMonSourcePath)"
+      DestinationFiles="$(OutDir)Tools\PresentMon\PresentMon-2.5.1-x64.exe"
+      SkipUnchangedFiles="true" />
+    <Copy
+      Condition="'$(PublishDir)' != ''"
+      SourceFiles="$(PresentMonSourcePath)"
+      DestinationFiles="$(PublishDir)Tools\PresentMon\PresentMon-2.5.1-x64.exe"
       SkipUnchangedFiles="true" />
   </Target>
 </Project>

@@ -149,7 +149,8 @@
                     Background="{ThemeResource GameNestSurfaceBrush}"
                     BorderBrush="{ThemeResource GameNestBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="10">
+                    CornerRadius="10"
+                    RightTapped="GameCard_RightTapped">
                     <Grid RowDefinitions="214,*">
                         <Border
                             Margin="8,8,8,0"
@@ -219,10 +220,11 @@
                                 <TextBlock
                                     FontSize="11"
                                     Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                    Text="{x:Bind MetadataSourceText, Mode=OneWay}" />
+                                    Text="{x:Bind CardSubtitleText, Mode=OneWay}" />
                             </StackPanel>
                             <Button
                                 Grid.Column="1"
+                                MinWidth="44"
                                 AutomationProperties.Name="启动游戏"
                                 Command="{x:Bind LaunchCommand}"
                                 Style="{StaticResource IconButtonStyle}">
@@ -481,18 +483,25 @@
                     x:Name="HomePage"
                     Visibility="{Binding IsHomePage, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="280" />
-                        <RowDefinition Height="20" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="*" MinHeight="220" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="0" />
+                        <RowDefinition Height="0" />
+                        <RowDefinition Height="0" />
+                        <RowDefinition Height="0" />
                     </Grid.RowDefinitions>
 
+                    <Image
+                        x:Name="HomeCoverBackground"
+                        Grid.RowSpan="5"
+                        AutomationProperties.Name="首页最近游玩游戏封面背景"
+                        Opacity="0.82"
+                        Source="{Binding HeroGame.CoverPath, Converter={StaticResource LocalPathToBitmapImageConverter}, ConverterParameter=1920}"
+                        Stretch="UniformToFill"
+                        Visibility="{Binding HeroGame.HasCover, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <Border
-                        Background="{ThemeResource GameNestHeroBrush}"
-                        BorderBrush="{ThemeResource GameNestBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="12">
+                        Background="#B8141A22"
+                        BorderThickness="0"
+                        CornerRadius="0">
                         <Grid ColumnDefinitions="3*,2*">
                             <StackPanel
                                 Margin="40,24"
@@ -566,7 +575,7 @@
                                         Style="{StaticResource AccentButtonStyle}" />
                                     <Button
                                         AutomationProperties.Name="打开游戏库"
-                                        Command="{Binding OpenLibraryCommand}"
+                                        Command="{Binding OpenHeroDetailsCommand}"
                                         Content="查看详情"
                                         Style="{StaticResource QuietButtonStyle}" />
                                 </StackPanel>
@@ -614,7 +623,7 @@
                         </Grid>
                     </Border>
 
-                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Visibility="Collapsed">
                         <TextBlock
                             VerticalAlignment="Center"
                             FontFamily="Segoe UI Variable Display"
@@ -640,7 +649,7 @@
                         Padding="28"
                         AutomationProperties.Name="正在加载本地游戏库"
                         Style="{StaticResource SurfaceCardStyle}"
-                        Visibility="{Binding IsLibraryLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="Collapsed">
                         <StackPanel VerticalAlignment="Center" Spacing="16">
                             <TextBlock
                                 FontSize="14"
@@ -657,7 +666,7 @@
                     <Border
                         Grid.Row="4"
                         MinHeight="220"
-                        Visibility="{Binding HasNoGames, Converter={StaticResource BooleanToVisibilityConverter}}"
+                        Visibility="Collapsed"
                         Style="{StaticResource SurfaceCardStyle}">
                         <StackPanel
                             Margin="24,16"
@@ -764,7 +773,7 @@
                         ItemTemplate="{StaticResource GameCardTemplate}"
                         ItemsSource="{Binding Games}"
                         SelectionMode="None"
-                        Visibility="{Binding HasAnyGames, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="Collapsed">
                         <GridView.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ItemsWrapGrid
@@ -785,7 +794,7 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Grid ColumnDefinitions="*,Auto,12,Auto">
+                    <Grid ColumnDefinitions="*,Auto,12,Auto,12,Auto,12,Auto">
                         <StackPanel Spacing="7">
                             <TextBlock
                                 Style="{StaticResource PageTitleStyle}"
@@ -812,12 +821,22 @@
                                 Text="{Binding DisplayedGameCountText}" />
                         </Border>
                         <Button
-                            Grid.Column="3"
+                            Grid.Column="5"
                             MinWidth="124"
                             VerticalAlignment="Center"
-                            AutomationProperties.Name="手工添加 EXE 或快捷方式"
+                            AutomationProperties.Name="获取缺失游戏封面"
+                            Click="FetchAllCovers_Click"
+                            Content="获取全部封面"
+                            IsEnabled="{Binding IsLibraryReady}"
+                            Style="{StaticResource QuietButtonStyle}"
+                            Visibility="{Binding IsLibraryPage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <Button
+                            Grid.Column="7"
+                            MinWidth="124"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="游戏库操作"
                             Click="AddGame_Click"
-                            Content="＋  添加游戏"
+                            Content="{Binding CollectionActionText}"
                             Style="{StaticResource AccentButtonStyle}" />
                     </Grid>
 
@@ -916,9 +935,9 @@
                                     TextWrapping="Wrap" />
                                 <Button
                                     HorizontalAlignment="Center"
-                                    AutomationProperties.Name="添加游戏"
+                                    AutomationProperties.Name="前往游戏库"
                                     Click="AddGame_Click"
-                                    Content="添加游戏"
+                                    Content="{Binding CollectionActionText}"
                                     Style="{StaticResource AccentButtonStyle}" />
                             </StackPanel>
                         </Border>
@@ -927,6 +946,7 @@
                             ColumnDefinitions="*,20,356"
                             Visibility="{Binding HasDisplayedGames, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <GridView
+                                x:Name="GameGrid"
                                 Grid.Column="0"
                                 Padding="2"
                                 AutomationProperties.Name="游戏卡片列表"
@@ -934,9 +954,11 @@
                                 ItemTemplate="{StaticResource GameCardTemplate}"
                                 ItemsSource="{Binding DisplayedGames}"
                                 SelectedItem="{Binding SelectedGame, Mode=TwoWay}"
-                                SelectionMode="Single"
+                                SelectionChanged="GameGrid_SelectionChanged"
+                                SelectionMode="Extended"
                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                Visibility="{Binding IsNotRecentPage, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <GridView.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <ItemsWrapGrid
@@ -947,6 +969,48 @@
                                     </ItemsPanelTemplate>
                                 </GridView.ItemsPanel>
                             </GridView>
+
+                            <ListView
+                                Grid.Column="0"
+                                Padding="2"
+                                AutomationProperties.Name="按时间分组的最近游玩列表"
+                                ItemsSource="{Binding RecentPlayGroups}"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                Visibility="{Binding IsRecentPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="viewModels:RecentPlayGroupViewModel">
+                                        <StackPanel Margin="0,0,0,22" Spacing="10">
+                                            <TextBlock
+                                                FontFamily="Segoe UI Variable Display"
+                                                FontSize="18"
+                                                FontWeight="SemiBold"
+                                                Text="{x:Bind Title}" />
+                                            <GridView
+                                                Height="316"
+                                                IsItemClickEnabled="True"
+                                                ItemTemplate="{StaticResource GameCardTemplate}"
+                                                ItemsSource="{x:Bind Games}"
+                                                SelectedItem="{Binding DataContext.SelectedGame, ElementName=ContentRoot, Mode=TwoWay}"
+                                                SelectionChanged="GameGrid_SelectionChanged"
+                                                SelectionMode="Extended"
+                                                ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                                                <GridView.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <ItemsWrapGrid
+                                                            HorizontalAlignment="Left"
+                                                            ItemHeight="316"
+                                                            ItemWidth="214"
+                                                            MaximumRowsOrColumns="1"
+                                                            Orientation="Horizontal" />
+                                                    </ItemsPanelTemplate>
+                                                </GridView.ItemsPanel>
+                                            </GridView>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
 
                             <Border
                                 Grid.Column="2"
@@ -1091,7 +1155,7 @@
                                             CommandParameter="{Binding SelectedGame}"
                                             Content="{Binding SelectedGame.FavoriteLabel}"
                                             Style="{StaticResource QuietButtonStyle}" />
-                                        <Grid ColumnDefinitions="*,8,*">
+                                        <StackPanel Spacing="8">
                                             <Button
                                                 HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center"
@@ -1101,7 +1165,6 @@
                                                 Content="选择封面"
                                                 Style="{StaticResource QuietButtonStyle}" />
                                             <Button
-                                                Grid.Column="2"
                                                 HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center"
                                                 AutomationProperties.Name="移除当前游戏封面"
@@ -1109,12 +1172,20 @@
                                                 Content="移除封面"
                                                 Style="{StaticResource QuietButtonStyle}"
                                                 Visibility="{Binding SelectedGame.HasCover, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                        </Grid>
+                                        </StackPanel>
+                                        <Button
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            AutomationProperties.Name="在线匹配游戏封面"
+                                            Click="SearchOnlineCover_Click"
+                                            Content="在线匹配封面"
+                                            Style="{StaticResource QuietButtonStyle}" />
                                     </StackPanel>
 
-                                    <Grid Grid.Row="6" ColumnDefinitions="*,8,Auto,8,Auto,8,Auto,8,Auto">
+                                    <Grid Grid.Row="6" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto">
                                         <Button
                                             Grid.Column="0"
+                                            MinWidth="124"
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Center"
                                             AutomationProperties.Name="启动当前游戏"
@@ -1123,26 +1194,25 @@
                                             Content="{Binding SelectedGame.LaunchButtonText}"
                                             Style="{StaticResource AccentButtonStyle}" />
                                         <Button
-                                            Grid.Column="2"
-                                            AutomationProperties.Name="停止当前游戏"
-                                            Click="StopGame_Click"
-                                            Content="停止"
-                                            Style="{StaticResource QuietButtonStyle}"
-                                            Visibility="{Binding SelectedGame.CanStop, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                        <Button
-                                            Grid.Column="4"
+                                            Grid.Row="2"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
                                             AutomationProperties.Name="调整当前游戏覆盖层"
                                             Click="GameOverlaySettings_Click"
                                             Content="覆盖层"
                                             Style="{StaticResource QuietButtonStyle}" />
                                         <Button
-                                            Grid.Column="6"
+                                            Grid.Row="4"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
                                             AutomationProperties.Name="编辑当前游戏"
                                             Click="EditGame_Click"
                                             Content="编辑"
                                             Style="{StaticResource QuietButtonStyle}" />
                                         <Button
-                                            Grid.Column="8"
+                                            Grid.Row="6"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
                                             AutomationProperties.Name="从库中移除当前游戏"
                                             Click="RemoveGame_Click"
                                             Content="移除"

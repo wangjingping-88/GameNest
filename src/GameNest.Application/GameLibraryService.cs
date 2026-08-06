@@ -7,10 +7,22 @@ public sealed class GameLibraryService(
     IGameLibraryRepository repository,
     ILocalGameFileInspector fileInspector,
     IGameAssetService assetService,
+    IGameCoverSearchProvider coverSearchProvider,
     IGameLaunchService launchService,
     IGameRuntimeRepository runtimeRepository)
 {
+    private static readonly IGameCoverSearchProvider NoOnlineCovers = new EmptyCoverSearchProvider();
     private readonly ConcurrentDictionary<Guid, LocalGameFileInspection> _pendingIconInspections = new();
+
+    public GameLibraryService(
+        IGameLibraryRepository repository,
+        ILocalGameFileInspector fileInspector,
+        IGameAssetService assetService,
+        IGameLaunchService launchService,
+        IGameRuntimeRepository runtimeRepository)
+        : this(repository, fileInspector, assetService, NoOnlineCovers, launchService, runtimeRepository)
+    {
+    }
 
     public event EventHandler<GameProcessStatusChangedEventArgs>? RuntimeStatusChanged
     {
@@ -136,13 +148,42 @@ public sealed class GameLibraryService(
         var cover = await assetService
             .DiscoverCoverAsync(gameId, game.InstallRoot, cancellationToken)
             .ConfigureAwait(false);
-        if (cover is null)
+        if (cover is not null)
+        {
+            await repository.SetCoverAsync(cover, isUserEdited: false, cancellationToken)
+                .ConfigureAwait(false);
+            return await GetRequiredGameAsync(gameId, cancellationToken).ConfigureAwait(false);
+        }
+
+        var onlineCover = (await coverSearchProvider.SearchAsync(game.Title, cancellationToken).ConfigureAwait(false))
+            .FirstOrDefault(static candidate => candidate.IsExactTitleMatch);
+        if (onlineCover is null)
         {
             return game;
         }
 
-        await repository.SetCoverAsync(cover, isUserEdited: false, cancellationToken)
+        cover = await assetService
+            .ImportCoverFromUriAsync(gameId, onlineCover.ImageUri, onlineCover.SourceName, cancellationToken)
             .ConfigureAwait(false);
+        await repository.SetCoverAsync(cover, isUserEdited: false, cancellationToken).ConfigureAwait(false);
+        return await GetRequiredGameAsync(gameId, cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task<IReadOnlyList<GameCoverCandidate>> SearchOnlineCoversAsync(
+        string title,
+        CancellationToken cancellationToken) => coverSearchProvider.SearchAsync(title, cancellationToken);
+
+    public async Task<Game> ApplyOnlineCoverAsync(
+        Guid gameId,
+        GameCoverCandidate candidate,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        _ = await GetRequiredGameAsync(gameId, cancellationToken).ConfigureAwait(false);
+        var cover = await assetService
+            .ImportCoverFromUriAsync(gameId, candidate.ImageUri, candidate.SourceName, cancellationToken)
+            .ConfigureAwait(false);
+        await repository.SetCoverAsync(cover, isUserEdited: false, cancellationToken).ConfigureAwait(false);
         return await GetRequiredGameAsync(gameId, cancellationToken).ConfigureAwait(false);
     }
 
@@ -353,5 +394,12 @@ public sealed class GameLibraryService(
         }
 
         return fields;
+    }
+
+    private sealed class EmptyCoverSearchProvider : IGameCoverSearchProvider
+    {
+        public Task<IReadOnlyList<GameCoverCandidate>> SearchAsync(
+            string title,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<GameCoverCandidate>>([]);
     }
 }

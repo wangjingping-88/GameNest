@@ -1,11 +1,16 @@
 using GameNest.App.ViewModels;
 using GameNest.Application;
 using GameNest.Domain;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
+using Windows.UI;
+using System.Numerics;
 
 namespace GameNest.App;
 
@@ -22,6 +27,9 @@ public sealed partial class MainWindow : Window, IDisposable
         ContentRoot.DataContext = ViewModel;
         ViewModel.UpdateInstallerStarted += HandleUpdateInstallerStarted;
         ViewModel.OpenUpdatePageRequested += HandleOpenUpdatePageRequested;
+        ViewModel.FocusGameRequested += HandleFocusGameRequested;
+        ContentRoot.ActualThemeChanged += HandleActualThemeChanged;
+        HomeCoverBackground.Loaded += HandleHomeCoverLoaded;
 
         Title = "GameNest";
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Brand", "GameNest.ico"));
@@ -34,16 +42,37 @@ public sealed partial class MainWindow : Window, IDisposable
             presenter.PreferredMinimumHeight = DefaultWindowSize.Height;
         }
 
-        AppWindow.Resize(DefaultWindowSize);
+        AppWindow.Resize(GetInitialWindowSize());
+        ApplyTitleBarTheme();
         Closed += HandleClosed;
     }
 
     public MainWindowViewModel ViewModel { get; }
 
+    private SizeInt32 GetInitialWindowSize()
+    {
+        var workArea = DisplayArea
+            .GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary)
+            .WorkArea;
+        var width = Math.Min(
+            workArea.Width,
+            Math.Max(DefaultWindowSize.Width, (int)Math.Round(workArea.Width * 0.66)));
+        var height = Math.Min(
+            workArea.Height,
+            Math.Max(DefaultWindowSize.Height, (int)Math.Round(workArea.Height * 0.70)));
+        return new SizeInt32(width, height);
+    }
+
     private async void AddGame_Click(object sender, RoutedEventArgs e)
     {
         _ = sender;
         _ = e;
+        if (!ViewModel.IsHomePage && !ViewModel.IsLibraryPage)
+        {
+            ViewModel.OpenLibraryCommand.Execute(null);
+            return;
+        }
+
         if (ViewModel.IsBusy || _isPickerOpen)
         {
             return;
@@ -250,6 +279,70 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
+    private async void SearchOnlineCover_Click(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        var game = ViewModel.SelectedGame;
+        if (game is null || ViewModel.IsBusy)
+        {
+            return;
+        }
+
+        var candidates = await ViewModel.SearchOnlineCoversAsync(game, _windowLifetime.Token);
+        if (candidates.Count == 0)
+        {
+            ViewModel.StatusMessage = $"没有找到“{game.Title}”的在线封面，可继续使用本地自定义封面。";
+            return;
+        }
+
+        var selector = new ComboBox
+        {
+            Header = "Steam 商店候选",
+            ItemsSource = candidates,
+            SelectedIndex = 0,
+            DisplayMemberPath = nameof(GameCoverCandidate.Title),
+            MinWidth = 360,
+        };
+        var dialog = new ContentDialog
+        {
+            XamlRoot = ContentRoot.XamlRoot,
+            Title = $"为“{game.Title}”选择在线封面",
+            Content = selector,
+            PrimaryButtonText = "使用封面",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary && selector.SelectedItem is GameCoverCandidate candidate)
+        {
+            await ViewModel.ApplyOnlineCoverAsync(game, candidate, _windowLifetime.Token);
+        }
+    }
+
+    private async void FetchAllCovers_Click(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        if (ViewModel.IsBusy)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = ContentRoot.XamlRoot,
+            Title = "获取全部游戏封面？",
+            Content = "将为缺少封面的游戏查询 Steam 商店。已有封面和你手动移除的封面都不会被覆盖。",
+            PrimaryButtonText = "开始获取",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            await ViewModel.FetchAllMissingCoversAsync(_windowLifetime.Token);
+        }
+    }
+
     private async void RemoveCover_Click(object sender, RoutedEventArgs e)
     {
         _ = sender;
@@ -299,6 +392,103 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             await ViewModel.RemoveGameAsync(game, _windowLifetime.Token);
         }
+    }
+
+    private async void RemoveSelectedGames_Click(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        if (!ViewModel.HasSelectedGames || ViewModel.IsBusy)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = ContentRoot.XamlRoot,
+            Title = "从游戏库移除已选择项目？",
+            Content = "只会删除 GameNest 中的本地记录，不会删除原始游戏文件。",
+            PrimaryButtonText = "移除已选择项目",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            await ViewModel.RemoveSelectedGamesAsync(_windowLifetime.Token);
+        }
+    }
+
+    private void GameGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _ = e;
+        if (sender is not GridView grid)
+        {
+            return;
+        }
+
+        ViewModel.UpdateGameSelection(grid.SelectedItems.OfType<GameCardViewModel>());
+    }
+
+    private void GameCard_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.DataContext is not GameCardViewModel game)
+        {
+            return;
+        }
+
+        var grid = FindAncestor<GridView>(element);
+        if (grid is null)
+        {
+            return;
+        }
+
+        if (!grid.SelectedItems.Contains(game))
+        {
+            grid.SelectedItems.Clear();
+            grid.SelectedItems.Add(game);
+        }
+
+        ViewModel.SelectedGame = game;
+        ViewModel.UpdateGameSelection(grid.SelectedItems.OfType<GameCardViewModel>());
+        var selectedCount = grid.SelectedItems.Count;
+        var menu = new MenuFlyout();
+        if (selectedCount == 1)
+        {
+            menu.Items.Add(new MenuFlyoutItem
+            {
+                Text = "启动游戏",
+                Command = game.LaunchCommand,
+            });
+            menu.Items.Add(new MenuFlyoutItem
+            {
+                Text = game.FavoriteLabel,
+                Command = game.ToggleFavoriteCommand,
+            });
+            menu.Items.Add(new MenuFlyoutSeparator());
+        }
+
+        var removeItem = new MenuFlyoutItem
+        {
+            Text = selectedCount == 1 ? "从游戏库移除" : $"从游戏库移除已选（{selectedCount}）",
+        };
+        removeItem.Click += RemoveSelectedGames_Click;
+        menu.Items.Add(removeItem);
+        menu.ShowAt(element, e.GetPosition(element));
+        e.Handled = true;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject element)
+        where T : DependencyObject
+    {
+        for (DependencyObject? current = element; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+        }
+
+        return null;
     }
 
     private async void GameOverlaySettings_Click(object sender, RoutedEventArgs e)
@@ -491,11 +681,62 @@ public sealed partial class MainWindow : Window, IDisposable
         _ = args;
         ViewModel.UpdateInstallerStarted -= HandleUpdateInstallerStarted;
         ViewModel.OpenUpdatePageRequested -= HandleOpenUpdatePageRequested;
+        ViewModel.FocusGameRequested -= HandleFocusGameRequested;
+        ContentRoot.ActualThemeChanged -= HandleActualThemeChanged;
+        HomeCoverBackground.Loaded -= HandleHomeCoverLoaded;
         _windowLifetime.Cancel();
         Dispose();
     }
 
     private void HandleUpdateInstallerStarted() => Close();
+
+    private void HandleFocusGameRequested(GameCardViewModel game)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            GameGrid.SelectedItem = game;
+            GameGrid.ScrollIntoView(game);
+        });
+    }
+
+    private void HandleActualThemeChanged(FrameworkElement sender, object args)
+    {
+        _ = sender;
+        _ = args;
+        DispatcherQueue.TryEnqueue(ApplyTitleBarTheme);
+    }
+
+    private void HandleHomeCoverLoaded(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        var visual = ElementCompositionPreview.GetElementVisual(HomeCoverBackground);
+        visual.CenterPoint = new Vector3(
+            (float)(HomeCoverBackground.ActualWidth / 2),
+            (float)(HomeCoverBackground.ActualHeight / 2),
+            0);
+        var animation = visual.Compositor.CreateVector3KeyFrameAnimation();
+        animation.InsertKeyFrame(0f, Vector3.One);
+        animation.InsertKeyFrame(0.5f, new Vector3(1.035f, 1.035f, 1f));
+        animation.InsertKeyFrame(1f, Vector3.One);
+        animation.Duration = TimeSpan.FromSeconds(18);
+        animation.IterationBehavior = Microsoft.UI.Composition.AnimationIterationBehavior.Forever;
+        visual.StartAnimation(nameof(visual.Scale), animation);
+    }
+
+    private void ApplyTitleBarTheme()
+    {
+        var isDark = ContentRoot.ActualTheme == ElementTheme.Dark;
+        var titleBar = AppWindow.TitleBar;
+        var foreground = isDark ? Color.FromArgb(255, 244, 247, 251) : Color.FromArgb(255, 24, 33, 47);
+        var hoverBackground = isDark ? Color.FromArgb(255, 46, 57, 71) : Color.FromArgb(255, 223, 233, 245);
+        titleBar.ButtonForegroundColor = foreground;
+        titleBar.ButtonInactiveForegroundColor = isDark ? Color.FromArgb(255, 166, 176, 191) : Color.FromArgb(255, 102, 112, 133);
+        titleBar.ButtonHoverForegroundColor = foreground;
+        titleBar.ButtonHoverBackgroundColor = hoverBackground;
+        titleBar.ButtonPressedForegroundColor = foreground;
+        titleBar.ButtonPressedBackgroundColor = isDark ? Color.FromArgb(255, 39, 71, 102) : Color.FromArgb(255, 213, 233, 255);
+    }
 
     private async void HandleOpenUpdatePageRequested(Uri releasePageUri)
     {

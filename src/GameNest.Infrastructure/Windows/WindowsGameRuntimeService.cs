@@ -383,11 +383,6 @@ public sealed class WindowsGameRuntimeService(
         ProcessSnapshotEntry candidate,
         ProcessSnapshot current)
     {
-        if (IsDescendantOfTrackedProcess(candidate, current, registration.LineageProcessIds))
-        {
-            return GameProcessConfidence.Confirmed;
-        }
-
         if (PathEquals(candidate.ExecutablePath, registration.Game.LaunchProfile.ExecutablePath))
         {
             return GameProcessConfidence.Confirmed;
@@ -400,8 +395,11 @@ public sealed class WindowsGameRuntimeService(
             return GameProcessConfidence.Confirmed;
         }
 
-        return IsPathInside(candidate.ExecutablePath, registration.Game.InstallRoot)
-            ? GameProcessConfidence.Probable
+        var isInsideInstallRoot = IsPathInside(candidate.ExecutablePath, registration.Game.InstallRoot);
+        return IsDescendantOfTrackedProcess(candidate, current, registration.LineageProcessIds) && isInsideInstallRoot
+            ? GameProcessConfidence.Confirmed
+            : isInsideInstallRoot
+                ? GameProcessConfidence.Probable
             : GameProcessConfidence.Unconfirmed;
     }
 

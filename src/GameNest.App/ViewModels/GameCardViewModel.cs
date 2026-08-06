@@ -9,6 +9,9 @@ namespace GameNest.App.ViewModels;
 public sealed partial class GameCardViewModel : ObservableObject
 {
     [ObservableProperty]
+    public partial bool IsSelected { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FavoriteGlyph))]
     [NotifyPropertyChangedFor(nameof(FavoriteLabel))]
     public partial bool IsFavorite { get; set; }
@@ -75,6 +78,9 @@ public sealed partial class GameCardViewModel : ObservableObject
 
     public bool HasNoCover => !HasCover;
 
+    public bool IsCoverManuallyDisabled =>
+        Model.UserEditedFields.Contains(GameEditableField.Cover);
+
     public DateTimeOffset DateAddedUtc => Model.DateAddedUtc;
 
     public DateTimeOffset? LastPlayedUtc => Model.LastPlayedUtc;
@@ -82,6 +88,8 @@ public sealed partial class GameCardViewModel : ObservableObject
     public string LastPlayedText => Model.LastPlayedUtc is null
         ? "尚未启动"
         : Model.LastPlayedUtc.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+
+    public string CardSubtitleText => Model.LastPlayedUtc is null ? SourceText : $"最近游玩 · {LastPlayedText}";
 
     public string SourceText => Model.SourceType switch
     {
@@ -172,6 +180,7 @@ public sealed partial class GameCardViewModel : ObservableObject
         OnPropertyChanged(nameof(DateAddedUtc));
         OnPropertyChanged(nameof(LastPlayedUtc));
         OnPropertyChanged(nameof(LastPlayedText));
+        OnPropertyChanged(nameof(CardSubtitleText));
         OnPropertyChanged(nameof(SourceText));
         OnPropertyChanged(nameof(MetadataSourceText));
         OnPropertyChanged(nameof(CoverDescription));

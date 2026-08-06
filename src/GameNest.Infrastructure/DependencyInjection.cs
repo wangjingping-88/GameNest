@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddSingleton<IGameSourceAdapter, GenericExecutableGameSourceAdapter>();
         services.AddSingleton<IImageAssetCache, WindowsImageAssetCache>();
         services.AddSingleton<IGameAssetService, WindowsGameAssetService>();
+        services.AddSingleton<IGameCoverSearchProvider, SteamStoreCoverSearchProvider>();
         services.AddSingleton<IGameMetadataRepository, SqliteGameMetadataRepository>();
         services.AddSingleton<IApplicationMaintenanceService, LocalApplicationMaintenanceService>();
         services.AddSingleton(ApplicationUpdateOptions.CreateDefault());

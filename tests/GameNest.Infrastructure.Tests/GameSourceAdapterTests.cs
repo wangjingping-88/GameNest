@@ -105,6 +105,28 @@ public sealed class GameSourceAdapterTests
         Assert.Equal(GameCandidateConfidence.High, new GameCandidateScorer().Score(candidate, DateTimeOffset.UtcNow).Confidence);
     }
 
+    [Fact]
+    public async Task ShortcutAdapterSkipsTargetsOutsideConfiguredRoots()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var root = Directory.CreateDirectory(Path.Combine(directory.Path, "Games"));
+        var external = Directory.CreateDirectory(Path.Combine(directory.Path, "Desktop"));
+        var executablePath = Path.Combine(external.FullName, "Tool.exe");
+        await File.WriteAllBytesAsync(executablePath, new byte[1024], TestContext.Current.CancellationToken);
+        var shortcutPath = Path.Combine(directory.Path, "Tool.lnk");
+        var adapter = new ShortcutGameSourceAdapter(
+            new StubShortcutInspector(shortcutPath, executablePath, external.FullName),
+            new StubShortcutLocator(shortcutPath),
+            NullLogger<ShortcutGameSourceAdapter>.Instance);
+
+        var candidates = await adapter.ScanAsync(
+            CreateContext(root.FullName),
+            null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Empty(candidates);
+    }
+
     private static GameScanContext CreateContext(string rootPath)
     {
         var root = new ScanRoot(

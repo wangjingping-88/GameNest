@@ -62,6 +62,29 @@ public sealed class WindowsGameRuntimeServiceTests
     }
 
     [Fact]
+    public async Task ExternalDescendantIsNotConfirmedAsAGameProcess()
+    {
+        var direct = Process(150, null, @"D:\Games\Launcher.exe");
+        var helper = Process(151, 150, @"C:\Program Files\Launcher\Helper.exe");
+        var snapshots = new ScriptedSnapshotProvider(
+            ProcessSnapshot.Empty,
+            Snapshot(direct, helper),
+            Snapshot(direct, helper));
+        await using var service = CreateService(
+            snapshots,
+            new FakeProcessController(150),
+            new RecordingRuntimeRepository());
+        var game = CreateGame(@"D:\Games\Launcher.exe");
+
+        await service.LaunchAsync(game, TestContext.Current.CancellationToken);
+        await Task.Delay(80, TestContext.Current.CancellationToken);
+
+        var runtime = service.GetRuntime(game.Id);
+        Assert.NotNull(runtime);
+        Assert.DoesNotContain(runtime.Processes, process => process.ProcessId == helper.ProcessId);
+    }
+
+    [Fact]
     public async Task LauncherMayExitBeforeFirstPostLaunchSnapshotWithoutEndingGame()
     {
         var child = Process(201, 200, @"D:\Games\RealGame.exe");

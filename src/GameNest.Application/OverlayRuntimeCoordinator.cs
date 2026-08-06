@@ -37,6 +37,7 @@ public interface IOverlayRuntimeCoordinator
 
 public sealed class OverlayRuntimeCoordinator : IOverlayRuntimeCoordinator, IAsyncDisposable
 {
+    private static readonly TimeSpan TelemetryTargetSettleDelay = TimeSpan.FromSeconds(1.5);
     private readonly GameLibraryService _gameLibraryService;
     private readonly OverlaySettingsService _settingsService;
     private readonly IPerformanceTelemetry _performanceTelemetry;
@@ -201,17 +202,27 @@ public sealed class OverlayRuntimeCoordinator : IOverlayRuntimeCoordinator, IAsy
                 current = _runtime;
             }
 
-            if (!forceRestart &&
-                current?.GameId == runtime.GameId &&
-                current.PrimaryProcessId == runtime.PrimaryProcessId &&
-                SameConfirmedProcesses(current, runtime))
+            if (!forceRestart && current?.GameId == runtime.GameId)
             {
-                lock (_syncRoot)
+                if (!SameConfirmedProcesses(current, runtime))
                 {
-                    _runtime = runtime;
+                    await Task.Delay(TelemetryTargetSettleDelay, cancellationToken).ConfigureAwait(false);
+                    var latest = _gameLibraryService.GetRuntime(runtime.GameId);
+                    if (latest?.IsRunning == true && latest.PrimaryProcessId is not null)
+                    {
+                        runtime = latest;
+                    }
                 }
 
-                return;
+                if (SameConfirmedProcesses(current, runtime))
+                {
+                    lock (_syncRoot)
+                    {
+                        _runtime = runtime;
+                    }
+
+                    return;
+                }
             }
 
             await StopSessionCoreAsync(CancellationToken.None).ConfigureAwait(false);
@@ -257,7 +268,6 @@ public sealed class OverlayRuntimeCoordinator : IOverlayRuntimeCoordinator, IAsy
 
     private async Task TrackWindowAsync(Guid gameId, CancellationToken cancellationToken)
     {
-        int? telemetryPrimaryProcessId = null;
         int overlayFailureCount = 0;
         try
         {
@@ -281,18 +291,6 @@ public sealed class OverlayRuntimeCoordinator : IOverlayRuntimeCoordinator, IAsy
                 {
                     await _overlayController.HideAsync(cancellationToken).ConfigureAwait(false);
                     return;
-                }
-
-                if (telemetryPrimaryProcessId is null)
-                {
-                    telemetryPrimaryProcessId = runtime.PrimaryProcessId;
-                }
-                else if (telemetryPrimaryProcessId != runtime.PrimaryProcessId)
-                {
-                    await _performanceTelemetry
-                        .StartAsync(CreateTelemetryTarget(runtime), cancellationToken)
-                        .ConfigureAwait(false);
-                    telemetryPrimaryProcessId = runtime.PrimaryProcessId;
                 }
 
                 var window = await _windowLocator
