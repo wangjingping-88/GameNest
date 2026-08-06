@@ -33,6 +33,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly OverlaySettingsService _overlaySettingsService;
     private readonly IOverlayRuntimeCoordinator _overlayRuntimeCoordinator;
     private readonly IApplicationMaintenanceService _maintenanceService;
+    private readonly IApplicationUpdateService _updateService;
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly SemaphoreSlim _themeChangeGate = new(1, 1);
     private readonly SemaphoreSlim _overlaySettingsGate = new(1, 1);
@@ -40,6 +41,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private SynchronizationContext? _uiContext;
     private Task? _sessionClockTask;
     private OverlayProfile? _globalOverlayProfile;
+    private UpdateRelease? _availableUpdate;
+    private UpdateInstallCapability _updateInstallCapability;
+    private bool _loadingUpdatePreference;
     private bool _disposed;
 
     [ObservableProperty]
@@ -58,6 +62,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(IsScanPage))]
     [NotifyPropertyChangedFor(nameof(IsGenericPage))]
     public partial NavigationItemViewModel? SelectedNavigationItem { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPerformanceOverlaySettingsSection))]
+    [NotifyPropertyChangedFor(nameof(IsAppearanceSettingsSection))]
+    [NotifyPropertyChangedFor(nameof(IsApplicationUpdateSettingsSection))]
+    [NotifyPropertyChangedFor(nameof(IsDataMaintenanceSettingsSection))]
+    [NotifyPropertyChangedFor(nameof(IsCompatibilitySettingsSection))]
+    public partial SettingsSectionItemViewModel? SelectedSettingsSection { get; set; }
 
     [ObservableProperty]
     public partial string PageTitle { get; set; } = "首页";
@@ -164,6 +176,46 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public partial string MaintenanceStatus { get; set; } =
         "每天最多自动备份一次；诊断包不包含游戏路径、数据库内容或凭据。";
 
+    [ObservableProperty]
+    public partial bool IsAutomaticUpdateCheckEnabled { get; set; } = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUpdateIdle))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateActionEnabled))]
+    public partial bool IsCheckingForUpdates { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUpdateIdle))]
+    [NotifyPropertyChangedFor(nameof(IsUpdateActionEnabled))]
+    public partial bool IsPreparingUpdate { get; set; }
+
+    [ObservableProperty]
+    public partial string UpdateStatus { get; set; } = "尚未检查更新。";
+
+    [ObservableProperty]
+    public partial string UpdateLatestVersionText { get; set; } = "尚未检查";
+
+    [ObservableProperty]
+    public partial string UpdatePublishedAtText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UpdateReleaseNotesDisplayText))]
+    public partial string UpdateReleaseNotes { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial double UpdateProgressPercent { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasUpdateProgress { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUpdateActionEnabled))]
+    [NotifyPropertyChangedFor(nameof(UpdateActionLabel))]
+    public partial bool HasAvailableUpdate { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsUpdateNotificationOpen { get; set; }
+
     public MainWindowViewModel(
         IApplicationDataInitializer dataInitializer,
         IThemePreferenceStore themePreferenceStore,
@@ -171,6 +223,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlaySettingsService overlaySettingsService,
         IOverlayRuntimeCoordinator overlayRuntimeCoordinator,
         IApplicationMaintenanceService maintenanceService,
+        IApplicationUpdateService updateService,
         ScanPageViewModel scan,
         ILogger<MainWindowViewModel> logger)
     {
@@ -180,6 +233,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _overlaySettingsService = overlaySettingsService;
         _overlayRuntimeCoordinator = overlayRuntimeCoordinator;
         _maintenanceService = maintenanceService;
+        _updateService = updateService;
         Scan = scan;
         _logger = logger;
 
@@ -204,13 +258,26 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             new("右下角", OverlayPosition.BottomRight),
         ];
         OverlayScaleOptions = [75, 100, 125, 150];
+        SettingsSections =
+        [
+            new(SettingsSectionId.PerformanceOverlay, "性能覆盖层", "显示、指标与快捷键", "\uE9D9"),
+            new(SettingsSectionId.Appearance, "应用外观", "浅色、深色或跟随系统", "\uE790"),
+            new(SettingsSectionId.ApplicationUpdate, "应用更新", "版本与自动检查", "\uE895"),
+            new(SettingsSectionId.DataMaintenance, "数据与维护", "备份、缓存与诊断", "\uE74E"),
+            new(SettingsSectionId.Compatibility, "兼容性检测", "覆盖层能力与权限", "\uE83D"),
+        ];
         _gameLibraryService.RuntimeStatusChanged += HandleRuntimeStatusChanged;
         _overlayRuntimeCoordinator.StatusChanged += HandleOverlayRuntimeStatusChanged;
         Scan.CandidatesImported += HandleCandidatesImported;
         SelectedNavigationItem = NavigationItems[0];
+        SelectedSettingsSection = SettingsSections[0];
     }
 
     public ObservableCollection<NavigationItemViewModel> NavigationItems { get; }
+
+    public event Action? UpdateInstallerStarted;
+
+    public event Action<Uri>? OpenUpdatePageRequested;
 
     public ObservableCollection<GameCardViewModel> Games { get; }
 
@@ -221,11 +288,28 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<int> OverlayScaleOptions { get; }
 
+    public IReadOnlyList<SettingsSectionItemViewModel> SettingsSections { get; }
+
     public ScanPageViewModel Scan { get; }
 
     public bool IsHomePage => SelectedNavigationItem?.Label == "首页";
 
     public bool IsSettingsPage => SelectedNavigationItem?.Label == "设置";
+
+    public bool IsPerformanceOverlaySettingsSection =>
+        SelectedSettingsSection?.Id == SettingsSectionId.PerformanceOverlay;
+
+    public bool IsAppearanceSettingsSection =>
+        SelectedSettingsSection?.Id == SettingsSectionId.Appearance;
+
+    public bool IsApplicationUpdateSettingsSection =>
+        SelectedSettingsSection?.Id == SettingsSectionId.ApplicationUpdate;
+
+    public bool IsDataMaintenanceSettingsSection =>
+        SelectedSettingsSection?.Id == SettingsSectionId.DataMaintenance;
+
+    public bool IsCompatibilitySettingsSection =>
+        SelectedSettingsSection?.Id == SettingsSectionId.Compatibility;
 
     public bool IsGameCollectionPage => SelectedNavigationItem?.Label is "游戏库" or "收藏" or "最近游玩" or "正在运行";
 
@@ -246,6 +330,20 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
     public bool IsMaintenanceIdle => !IsMaintenanceBusy;
+
+    public bool IsUpdateIdle => !IsCheckingForUpdates && !IsPreparingUpdate;
+
+    public bool IsUpdateActionEnabled => HasAvailableUpdate && IsUpdateIdle;
+
+    public string UpdateActionLabel => _updateInstallCapability == UpdateInstallCapability.Ready
+        ? "下载并安装"
+        : "打开下载页";
+
+    public string UpdateCurrentVersionText => ApplicationVersion.Format(_updateService.CurrentVersion);
+
+    public string UpdateReleaseNotesDisplayText => string.IsNullOrWhiteSpace(UpdateReleaseNotes)
+        ? "暂无可用的发布说明。"
+        : UpdateReleaseNotes;
 
     public bool IsLibraryReady => !IsLibraryLoading;
 
@@ -296,6 +394,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             LibraryErrorMessage = null;
             await _dataInitializer.InitializeAsync(cancellationToken);
             CurrentTheme = await _themePreferenceStore.GetAsync(cancellationToken);
+            _loadingUpdatePreference = true;
+            var updatePreference = await _updateService.GetPreferenceAsync(cancellationToken);
+            IsAutomaticUpdateCheckEnabled = updatePreference.AutomaticCheckEnabled;
+            _loadingUpdatePreference = false;
             await LoadOverlaySettingsAsync(cancellationToken);
             await _overlayRuntimeCoordinator.InitializeAsync(cancellationToken);
             var recoveredSessionCount = await _gameLibraryService
@@ -308,6 +410,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             StartupStatusGlyph = "\uE930";
             IsLibraryLoading = false;
             _ = RunAutomaticBackupAsync(_viewModelLifetime.Token);
+            _ = CheckForUpdatesCoreAsync(force: false, _viewModelLifetime.Token);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -547,11 +650,80 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ApplyFilter();
     }
 
+    partial void OnIsAutomaticUpdateCheckEnabledChanged(bool value)
+    {
+        if (!_loadingUpdatePreference && !_disposed)
+        {
+            _ = SaveAutomaticUpdatePreferenceAsync(value, _viewModelLifetime.Token);
+        }
+    }
+
     [RelayCommand]
     private void OpenSettings() => SelectedNavigationItem = NavigationItems[^1];
 
     [RelayCommand]
     private void OpenLibrary() => SelectedNavigationItem = NavigationItems[1];
+
+    [RelayCommand]
+    private Task CheckForUpdatesAsync(CancellationToken cancellationToken) =>
+        CheckForUpdatesCoreAsync(force: true, cancellationToken);
+
+    [RelayCommand]
+    private async Task InstallOrOpenUpdateAsync(CancellationToken cancellationToken)
+    {
+        var release = _availableUpdate;
+        if (release is null || IsPreparingUpdate)
+        {
+            return;
+        }
+
+        if (_updateInstallCapability != UpdateInstallCapability.Ready)
+        {
+            OpenUpdatePageRequested?.Invoke(release.ReleasePageUri);
+            return;
+        }
+
+        try
+        {
+            IsPreparingUpdate = true;
+            HasUpdateProgress = true;
+            var progress = new Progress<UpdateProgress>(value =>
+            {
+                UpdateStatus = value.Message;
+                UpdateProgressPercent = value.Percent ?? 0;
+                HasUpdateProgress = value.Percent.HasValue;
+            });
+            var prepared = await _updateService.PrepareAsync(release, progress, cancellationToken);
+            var launched = await _updateService.LaunchInstallerAsync(
+                prepared,
+                Environment.ProcessId,
+                cancellationToken);
+            UpdateStatus = launched.Message;
+            if (launched.Started)
+            {
+                UpdateInstallerStarted?.Invoke();
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            UpdateStatus = "更新准备已取消。";
+        }
+        catch (Exception exception)
+        {
+            GameOperationFailed(_logger, "准备应用更新", exception);
+            UpdateStatus = exception is InvalidDataException or InvalidOperationException
+                ? exception.Message
+                : "无法准备更新，请查看日志或改用 GitHub 下载页。";
+            if (exception is InvalidOperationException { InnerException: UnauthorizedAccessException })
+            {
+                OpenUpdatePageRequested?.Invoke(release.ReleasePageUri);
+            }
+        }
+        finally
+        {
+            IsPreparingUpdate = false;
+        }
+    }
 
     [RelayCommand]
     private async Task RetryLibraryLoadAsync(CancellationToken cancellationToken)
@@ -686,6 +858,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private Task UseSystemThemeAsync(CancellationToken cancellationToken) =>
         ChangeThemeAsync(ThemePreference.System, cancellationToken);
+
+    [RelayCommand]
+    private void OpenCompatibilitySettings()
+    {
+        SelectedSettingsSection = SettingsSections.First(section =>
+            section.Id == SettingsSectionId.Compatibility);
+    }
 
     [RelayCommand]
     private async Task SaveOverlaySettingsAsync(CancellationToken cancellationToken)
@@ -888,6 +1067,92 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             ReportGameOperationFailure("保存游戏覆盖层设置", exception);
             return false;
+        }
+    }
+
+    private async Task CheckForUpdatesCoreAsync(bool force, CancellationToken cancellationToken)
+    {
+        if (IsCheckingForUpdates || IsPreparingUpdate)
+        {
+            return;
+        }
+
+        try
+        {
+            IsCheckingForUpdates = true;
+            if (force)
+            {
+                UpdateStatus = "正在连接 GitHub 检查正式版本…";
+            }
+
+            var result = await _updateService.CheckAsync(force, cancellationToken);
+            _updateInstallCapability = result.InstallCapability;
+            _availableUpdate = result.Release;
+            HasAvailableUpdate = result.Availability == UpdateAvailability.Available && result.Release is not null;
+            IsUpdateNotificationOpen = HasAvailableUpdate;
+            UpdateStatus = result.Message;
+            UpdateLatestVersionText = result.Release is null
+                ? result.Availability == UpdateAvailability.UpToDate
+                    ? UpdateCurrentVersionText
+                    : "尚不可用"
+                : ApplicationVersion.Format(result.Release.Version);
+            UpdatePublishedAtText = result.Release is null
+                ? string.Empty
+                : $"发布于 {result.Release.PublishedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}";
+            UpdateReleaseNotes = result.Release?.ReleaseNotes ?? string.Empty;
+            if (HasAvailableUpdate && result.InstallCapability != UpdateInstallCapability.Ready)
+            {
+                UpdateStatus = result.InstallCapability switch
+                {
+                    UpdateInstallCapability.TrustedSigningKeyUnavailable =>
+                        "发现新版本；当前 0.2.0 尚无内置生产公钥，请从 GitHub 下载页手动更新。",
+                    UpdateInstallCapability.NotPortable =>
+                        "发现新版本；当前安装不是可验证的便携版目录，请手动更新。",
+                    UpdateInstallCapability.ProgramDirectoryNotWritable =>
+                        "发现新版本；普通权限无法写入当前目录，请手动更新。",
+                    _ => "发现新版本，但当前系统不支持自动安装。",
+                };
+            }
+
+            OnPropertyChanged(nameof(UpdateActionLabel));
+            OnPropertyChanged(nameof(IsUpdateActionEnabled));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (force)
+            {
+                UpdateStatus = "检查更新已取消。";
+            }
+        }
+        catch (Exception exception)
+        {
+            GameOperationFailed(_logger, "检查应用更新", exception);
+            UpdateStatus = "暂时无法检查更新；本地游戏库不受影响。";
+        }
+        finally
+        {
+            IsCheckingForUpdates = false;
+        }
+    }
+
+    private async Task SaveAutomaticUpdatePreferenceAsync(
+        bool enabled,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _updateService.SetAutomaticCheckEnabledAsync(enabled, cancellationToken);
+            UpdateStatus = enabled
+                ? "已开启自动检查，每 24 小时最多请求 GitHub 一次。"
+                : "已关闭自动检查；仍可随时手动检查。";
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            GameOperationFailed(_logger, "保存自动更新偏好", exception);
+            UpdateStatus = "无法保存自动检查设置，请稍后重试。";
         }
     }
 

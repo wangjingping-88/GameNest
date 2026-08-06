@@ -13,6 +13,8 @@ public sealed record GameNestDataPaths(
         Path.Combine(AssetDirectory, "icons"),
     ];
 
+    public string UpdateDirectory => Path.Combine(RootDirectory, "updates");
+
     public static GameNestDataPaths CreateDefault()
     {
         var configuredRoot = Environment.GetEnvironmentVariable("GAMENEST_DATA_ROOT");

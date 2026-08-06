@@ -1,0 +1,282 @@
+<UserControl
+    x:Class="GameNest.App.Views.SettingsPageView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewModels="using:GameNest.App.ViewModels"
+    mc:Ignorable="d">
+    <UserControl.Resources>
+        <Style x:Key="SettingsTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Variable Display" />
+            <Setter Property="FontSize" Value="32" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{ThemeResource GameNestPrimaryTextBrush}" />
+        </Style>
+        <Style x:Key="SettingsCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource GameNestSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource GameNestBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+        <Style x:Key="SettingsSectionItemStyle" TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="MinHeight" Value="64" />
+            <Setter Property="Margin" Value="6,3" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style x:Key="SettingsQuietButtonStyle" TargetType="Button">
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Padding" Value="18,7" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid
+        MaxWidth="1460"
+        HorizontalAlignment="Left"
+        VerticalAlignment="Top"
+        RowDefinitions="Auto,20,*">
+        <StackPanel Spacing="7">
+            <TextBlock Style="{StaticResource SettingsTitleStyle}" Text="{Binding PageTitle}" />
+            <TextBlock
+                MaxWidth="820"
+                HorizontalAlignment="Left"
+                FontSize="15"
+                Foreground="{ThemeResource GameNestSecondaryTextBrush}"
+                Text="{Binding PageDescription}"
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Grid Grid.Row="2" ColumnDefinitions="208,20,*">
+            <Border Padding="0,8" Style="{StaticResource SettingsCardStyle}">
+                <ListView
+                    AutomationProperties.Name="设置分类"
+                    IsItemClickEnabled="False"
+                    ItemsSource="{Binding SettingsSections}"
+                    SelectedItem="{Binding SelectedSettingsSection, Mode=TwoWay}"
+                    SelectionMode="Single">
+                    <ListView.ItemContainerStyle>
+                        <StaticResource ResourceKey="SettingsSectionItemStyle" />
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="viewModels:SettingsSectionItemViewModel">
+                            <Grid ColumnDefinitions="30,*">
+                                <FontIcon
+                                    VerticalAlignment="Center"
+                                    FontSize="17"
+                                    Foreground="{ThemeResource GameNestAccentBrush}"
+                                    Glyph="{x:Bind Glyph}" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource GameNestPrimaryTextBrush}"
+                                        Text="{x:Bind Label}" />
+                                    <TextBlock
+                                        FontSize="11"
+                                        Foreground="{ThemeResource GameNestSecondaryTextBrush}"
+                                        Text="{x:Bind Description}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+
+            <ScrollViewer
+                x:Name="SettingsDetailScrollViewer"
+                Grid.Column="2"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto">
+                <Grid>
+                    <Grid
+                        ColumnDefinitions="*,16,360"
+                        Visibility="{Binding IsPerformanceOverlaySettingsSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Border Padding="22" Style="{StaticResource SettingsCardStyle}">
+                            <StackPanel Spacing="14">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock FontFamily="Segoe UI Variable Display" FontSize="24" FontWeight="SemiBold" Text="性能覆盖层" />
+                                        <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="只采集当前已确认的本地游戏进程，不上传指标。" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ToggleSwitch
+                                        Grid.Column="1"
+                                        AutomationProperties.Name="启用性能覆盖层"
+                                        IsOn="{Binding IsOverlayEnabled, Mode=TwoWay}"
+                                        OffContent="关闭"
+                                        OnContent="启用" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,14,*,14,*">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="位置" />
+                                        <ComboBox HorizontalAlignment="Stretch" AutomationProperties.Name="覆盖层位置" ItemsSource="{Binding OverlayPositionOptions}" SelectedItem="{Binding SelectedOverlayPosition, Mode=TwoWay}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="6">
+                                        <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="缩放" />
+                                        <ComboBox HorizontalAlignment="Stretch" AutomationProperties.Name="覆盖层缩放" ItemsSource="{Binding OverlayScaleOptions}" SelectedItem="{Binding OverlayScalePercent, Mode=TwoWay}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4" Spacing="6">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="背景不透明度" />
+                                            <TextBlock Grid.Column="1" FontSize="12" Text="{Binding OverlayOpacityText}" />
+                                        </Grid>
+                                        <Slider AutomationProperties.Name="覆盖层背景不透明度" Minimum="50" Maximum="95" SmallChange="1" StepFrequency="1" Value="{Binding OverlayOpacityPercent, Mode=TwoWay}" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Spacing="4">
+                                    <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="显示指标" />
+                                    <Grid ColumnDefinitions="*,*,*,*">
+                                        <CheckBox Content="FPS" IsChecked="{Binding ShowOverlayFps, Mode=TwoWay}" />
+                                        <CheckBox Grid.Column="1" Content="CPU" IsChecked="{Binding ShowOverlayCpu, Mode=TwoWay}" />
+                                        <CheckBox Grid.Column="2" Content="GPU" IsChecked="{Binding ShowOverlayGpu, Mode=TwoWay}" />
+                                        <CheckBox Grid.Column="3" Content="RAM" IsChecked="{Binding ShowOverlayRam, Mode=TwoWay}" />
+                                    </Grid>
+                                </StackPanel>
+                                <Grid ColumnDefinitions="3*,16,2*">
+                                    <TextBox AutomationProperties.Name="覆盖层显示隐藏快捷键" Header="显示 / 隐藏快捷键" PlaceholderText="例如 Ctrl+Shift+F12" Text="{Binding OverlayToggleHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <ToggleSwitch Grid.Column="2" VerticalAlignment="Bottom" AutomationProperties.Name="游戏不在前台时隐藏覆盖层" Header="前台行为" IsOn="{Binding HideOverlayWhenGameNotForeground, Mode=TwoWay}" OffContent="始终显示" OnContent="切走时隐藏" />
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,14,*">
+                                    <Button AutomationProperties.Name="保存覆盖层设置" Command="{Binding SaveOverlaySettingsCommand}" Content="保存并应用" Style="{StaticResource AccentButtonStyle}" />
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding OverlaySettingsStatus}" TextWrapping="Wrap" />
+                                </Grid>
+                                <Border Padding="12" Background="{ThemeResource GameNestHeroBrush}" BorderBrush="{ThemeResource GameNestBorderBrush}" BorderThickness="1" CornerRadius="10">
+                                    <Grid ColumnDefinitions="26,*">
+                                        <FontIcon FontSize="15" Foreground="{ThemeResource GameNestAccentBrush}" Glyph="&#xE72E;" />
+                                        <TextBlock Grid.Column="1" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="普通权限运行；不注入、不 Hook、不修改游戏内存。独占全屏不可见时请切换为无边框全屏。" TextWrapping="Wrap" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Grid.Column="2" Spacing="16">
+                            <Border Padding="18" Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock FontFamily="Segoe UI Variable Display" FontSize="20" FontWeight="SemiBold" Text="实时样式预览" />
+                                        <TextBlock Grid.Column="1" FontSize="11" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="示例值" />
+                                    </Grid>
+                                    <Border Padding="12,10" Background="#FF171A1F" CornerRadius="10" Opacity="{Binding OverlayPreviewOpacity}">
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Foreground="#FF62C981" FontFamily="Cascadia Mono" FontWeight="SemiBold" Text="FPS 118" Visibility="{Binding ShowOverlayFps, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            <TextBlock Foreground="#FF549EFF" FontFamily="Cascadia Mono" FontWeight="SemiBold" Text="CPU 34%" Visibility="{Binding ShowOverlayCpu, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            <TextBlock Foreground="#FFF4A656" FontFamily="Cascadia Mono" FontWeight="SemiBold" Text="GPU 87%" Visibility="{Binding ShowOverlayGpu, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            <TextBlock Foreground="#FFBB86FC" FontFamily="Cascadia Mono" FontWeight="SemiBold" Text="RAM 6.8 GB" Visibility="{Binding ShowOverlayRam, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBlock HorizontalAlignment="Center" FontSize="11" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding OverlayPreviewSummary}" />
+                                    <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding OverlayRuntimeStatusText}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Border Padding="18" Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel Spacing="10">
+                                    <TextBlock FontFamily="Segoe UI Variable Display" FontSize="18" FontWeight="SemiBold" Text="兼容性入口" />
+                                    <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="检查系统、PresentMon 与覆盖层运行条件。" TextWrapping="Wrap" />
+                                    <Button HorizontalAlignment="Left" AutomationProperties.Name="打开兼容性检测设置" Command="{Binding OpenCompatibilitySettingsCommand}" Content="打开兼容性检测" Style="{StaticResource SettingsQuietButtonStyle}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Padding="22" Style="{StaticResource SettingsCardStyle}" Visibility="{Binding IsAppearanceSettingsSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel MaxWidth="720" HorizontalAlignment="Left" Spacing="14">
+                            <TextBlock FontFamily="Segoe UI Variable Display" FontSize="24" FontWeight="SemiBold" Text="应用外观" />
+                            <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="选择界面主题；Logo、背景和边框会随主题即时更新。" TextWrapping="Wrap" />
+                            <RadioButton AutomationProperties.Name="使用浅色主题" Command="{Binding UseLightThemeCommand}" Content="浅色" GroupName="ThemePreference" IsChecked="{Binding IsLightTheme, Mode=OneWay}" />
+                            <TextBlock Margin="32,-10,0,2" FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="明亮清晰，适合大多数环境。" />
+                            <RadioButton AutomationProperties.Name="使用深色主题" Command="{Binding UseDarkThemeCommand}" Content="深色" GroupName="ThemePreference" IsChecked="{Binding IsDarkTheme, Mode=OneWay}" />
+                            <TextBlock Margin="32,-10,0,2" FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="降低夜间环境中的视觉亮度。" />
+                            <RadioButton AutomationProperties.Name="跟随系统主题" Command="{Binding UseSystemThemeCommand}" Content="跟随系统" GroupName="ThemePreference" IsChecked="{Binding IsSystemTheme, Mode=OneWay}" />
+                            <TextBlock Margin="32,-10,0,2" FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="自动匹配 Windows 当前应用模式。" />
+                            <Border Margin="0,4,0,0" Padding="12" Background="{ThemeResource GameNestHeroBrush}" CornerRadius="10">
+                                <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding StartupStatus}" TextWrapping="Wrap" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Padding="22" Style="{StaticResource SettingsCardStyle}" Visibility="{Binding IsApplicationUpdateSettingsSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel MaxWidth="860" HorizontalAlignment="Left" Spacing="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="4">
+                                    <TextBlock FontFamily="Segoe UI Variable Display" FontSize="24" FontWeight="SemiBold" Text="应用更新" />
+                                    <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="仅检查 GameNest 正式版；不会上传游戏库、路径或性能数据。" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <FontIcon Grid.Column="1" FontSize="20" Foreground="{ThemeResource GameNestAccentBrush}" Glyph="&#xE895;" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="3"><TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="当前版本" /><TextBlock FontSize="18" FontWeight="SemiBold" Text="{Binding UpdateCurrentVersionText}" /></StackPanel>
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="3"><TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="最新版本" /><TextBlock HorizontalAlignment="Right" FontSize="18" FontWeight="SemiBold" Text="{Binding UpdateLatestVersionText}" /></StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="3"><TextBlock FontWeight="SemiBold" Text="自动检查" /><TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="每 24 小时最多检查一次。" /></StackPanel>
+                                <ToggleSwitch Grid.Column="1" AutomationProperties.Name="自动检查 GameNest 更新" IsOn="{Binding IsAutomaticUpdateCheckEnabled, Mode=TwoWay}" OffContent="已关闭" OnContent="已启用" />
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button AutomationProperties.Name="立即检查 GameNest 更新" Command="{Binding CheckForUpdatesCommand}" Content="立即检查" IsEnabled="{Binding IsUpdateIdle}" Style="{StaticResource SettingsQuietButtonStyle}" />
+                                <Button AutomationProperties.Name="安装或打开 GameNest 更新" Command="{Binding InstallOrOpenUpdateCommand}" Content="{Binding UpdateActionLabel}" IsEnabled="{Binding IsUpdateActionEnabled}" Style="{StaticResource AccentButtonStyle}" Visibility="{Binding HasAvailableUpdate, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <ProgressBar AutomationProperties.Name="应用更新下载进度" Maximum="100" Value="{Binding UpdateProgressPercent}" Visibility="{Binding HasUpdateProgress, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding UpdateStatus}" TextWrapping="Wrap" />
+                            <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding UpdatePublishedAtText}" />
+                            <StackPanel Spacing="6">
+                                <TextBlock FontWeight="SemiBold" Text="发布说明" />
+                                <Border Padding="12" Background="{ThemeResource GameNestHeroBrush}" CornerRadius="10">
+                                    <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto">
+                                        <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding UpdateReleaseNotesDisplayText}" TextWrapping="Wrap" />
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Padding="22" Style="{StaticResource SettingsCardStyle}" Visibility="{Binding IsDataMaintenanceSettingsSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel MaxWidth="920" HorizontalAlignment="Left" Spacing="12">
+                            <TextBlock FontFamily="Segoe UI Variable Display" FontSize="24" FontWeight="SemiBold" Text="数据与维护" />
+                            <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="备份、缓存清理和诊断导出都只在本机执行。" TextWrapping="Wrap" />
+                            <Border Padding="16" Background="{ThemeResource GameNestHeroBrush}" CornerRadius="10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="3"><TextBlock FontWeight="SemiBold" Text="数据库备份" /><TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="创建数据库安全副本，用于迁移或故障恢复。" TextWrapping="Wrap" /></StackPanel>
+                                    <Button Grid.Column="1" AutomationProperties.Name="立即备份本地数据库" Command="{Binding CreateBackupCommand}" Content="立即备份" IsEnabled="{Binding IsMaintenanceIdle}" Style="{StaticResource SettingsQuietButtonStyle}" />
+                                </Grid>
+                            </Border>
+                            <Border Padding="16" Background="{ThemeResource GameNestHeroBrush}" CornerRadius="10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="3"><TextBlock FontWeight="SemiBold" Text="图片缓存" /><TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="删除不再被游戏库引用的本地图片。" TextWrapping="Wrap" /></StackPanel>
+                                    <Button Grid.Column="1" AutomationProperties.Name="清理无引用图片缓存" Command="{Binding CleanupImageCacheCommand}" Content="清理缓存" IsEnabled="{Binding IsMaintenanceIdle}" Style="{StaticResource SettingsQuietButtonStyle}" />
+                                </Grid>
+                            </Border>
+                            <Border Padding="16" Background="{ThemeResource GameNestHeroBrush}" CornerRadius="10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="3"><TextBlock FontWeight="SemiBold" Text="诊断信息" /><TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="导出系统信息、数据库统计和脱敏日志；不包含游戏路径、数据库内容或凭据。" TextWrapping="Wrap" /></StackPanel>
+                                    <Button Grid.Column="1" AutomationProperties.HelpText="导出系统信息、数据库统计和脱敏日志；不包含游戏路径、数据库内容或凭据" AutomationProperties.Name="导出脱敏诊断信息" Click="ExportDiagnostics_Click" Content="导出诊断" IsEnabled="{Binding IsMaintenanceIdle}" Style="{StaticResource AccentButtonStyle}" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding MaintenanceStatus}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Padding="22" Style="{StaticResource SettingsCardStyle}" Visibility="{Binding IsCompatibilitySettingsSection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel MaxWidth="920" HorizontalAlignment="Left" Spacing="14">
+                            <TextBlock FontFamily="Segoe UI Variable Display" FontSize="24" FontWeight="SemiBold" Text="兼容性检测" />
+                            <TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="检测不会启动游戏，也不会请求管理员权限。" TextWrapping="Wrap" />
+                            <Border Padding="16" Background="{ThemeResource GameNestHeroBrush}" CornerRadius="10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="4"><TextBlock FontWeight="SemiBold" Text="覆盖层运行条件" /><TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="检查 Windows、PresentMon 及本机覆盖层运行条件。" TextWrapping="Wrap" /></StackPanel>
+                                    <Button Grid.Column="1" AutomationProperties.Name="检测覆盖层兼容性" Command="{Binding CheckOverlayCompatibilityCommand}" Content="开始检测" Style="{StaticResource SettingsQuietButtonStyle}" />
+                                </Grid>
+                            </Border>
+                            <Border Padding="16" BorderBrush="{ThemeResource GameNestBorderBrush}" BorderThickness="1" CornerRadius="10">
+                                <StackPanel Spacing="6"><TextBlock FontWeight="SemiBold" Text="检测结果" /><TextBlock Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="{Binding OverlayCompatibilityStatus}" TextWrapping="Wrap" /></StackPanel>
+                            </Border>
+                            <Border Padding="12" Background="{ThemeResource GameNestHeroBrush}" CornerRadius="10">
+                                <Grid ColumnDefinitions="26,*"><FontIcon Foreground="{ThemeResource GameNestAccentBrush}" Glyph="&#xE72E;" /><TextBlock Grid.Column="1" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="真实 FPS 采集可能需要 Performance Log Users 权限；GameNest 保持普通权限运行策略。" TextWrapping="Wrap" /></Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -9,6 +9,11 @@ $packageRoot = [IO.Path]::GetFullPath($PackageDirectory)
 if (-not (Test-Path -LiteralPath $packageRoot -PathType Container)) {
     throw "Release directory does not exist: $packageRoot"
 }
+$packageDirectoryName = [IO.Path]::GetFileName($packageRoot)
+if ($packageDirectoryName -notmatch '^GameNest-(\d+\.\d+\.\d+)-win-x64-portable$') {
+    throw "Release directory name does not match the fixed package contract: $packageDirectoryName"
+}
+$expectedVersion = $Matches[1]
 
 $requiredFiles = @(
     'GameNest.App.exe',
@@ -27,7 +32,8 @@ $requiredFiles = @(
     'LICENSES\PresentMon-2.5.1-LICENSE.txt',
     'Uninstall-GameNest.ps1',
     'Uninstall-GameNest.cmd',
-    '.gamenest-portable-root'
+    '.gamenest-portable-root',
+    'VERSION.txt'
 )
 
 foreach ($relativePath in $requiredFiles) {
@@ -35,6 +41,16 @@ foreach ($relativePath in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
         throw "Required release file is missing: $relativePath"
     }
+}
+
+$versionText = Get-Content -LiteralPath (Join-Path $packageRoot 'VERSION.txt') -Raw -Encoding UTF8
+if (-not $versionText.StartsWith("GameNest $expectedVersion`r`n", [StringComparison]::Ordinal)) {
+    throw "VERSION.txt does not match package version $expectedVersion"
+}
+$appVersion = (Get-Item -LiteralPath (Join-Path $packageRoot 'GameNest.App.exe')).VersionInfo
+if ($appVersion.FileVersion -cne "$expectedVersion.0" -or
+    -not $appVersion.ProductVersion.StartsWith($expectedVersion, [StringComparison]::Ordinal)) {
+    throw "GameNest.App.exe version does not match package version $expectedVersion"
 }
 
 $debugArtifacts = Get-ChildItem -LiteralPath $packageRoot -Recurse -File |

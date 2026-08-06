@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:views="using:GameNest.App.Views"
     xmlns:viewModels="using:GameNest.App.ViewModels"
     mc:Ignorable="d">
     <Grid
@@ -37,15 +38,6 @@
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="CornerRadius" Value="{StaticResource GameNestButtonCornerRadius}" />
                 <Setter Property="Foreground" Value="{ThemeResource GameNestPrimaryTextBrush}" />
-            </Style>
-            <Style x:Key="ThemeOptionStyle" TargetType="RadioButton">
-                <Setter Property="MinHeight" Value="54" />
-                <Setter Property="Padding" Value="14,10" />
-                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                <Setter Property="Background" Value="{ThemeResource GameNestSecondarySurfaceBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource GameNestBorderBrush}" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="CornerRadius" Value="{StaticResource GameNestButtonCornerRadius}" />
             </Style>
             <Style x:Key="NavigationItemStyle" TargetType="ListViewItem">
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -355,14 +347,14 @@
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="GameNest"
-                    Background="#FFF7FAFE"
-                    BorderBrush="#242688F4"
+                    Background="{ThemeResource GameNestLogoBackgroundBrush}"
+                    BorderBrush="{ThemeResource GameNestLogoBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="9">
                     <Image
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Stretch"
-                        Source="Assets/Brand/GameNest_Logo_Horizontal.png"
+                        Source="{ThemeResource GameNestHorizontalLogoSource}"
                         Stretch="Uniform" />
                 </Border>
             </Grid>
@@ -452,13 +444,36 @@
             </Grid>
         </Border>
 
-        <ScrollViewer
-            x:Name="MainScrollViewer"
-            Grid.Row="1"
-            Grid.Column="1"
-            HorizontalScrollBarVisibility="Disabled"
-            VerticalContentAlignment="Stretch"
-            VerticalScrollBarVisibility="Disabled">
+        <Grid Grid.Row="1" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <InfoBar
+                Grid.Row="0"
+                Margin="36,10,40,0"
+                AutomationProperties.Name="应用更新提示"
+                IsClosable="True"
+                IsOpen="{Binding IsUpdateNotificationOpen, Mode=TwoWay}"
+                Message="{Binding UpdateStatus}"
+                Severity="Informational"
+                Title="发现 GameNest 新版本">
+                <InfoBar.ActionButton>
+                    <Button
+                        AutomationProperties.Name="处理可用应用更新"
+                        Command="{Binding InstallOrOpenUpdateCommand}"
+                        Content="{Binding UpdateActionLabel}"
+                        IsEnabled="{Binding IsUpdateActionEnabled}"
+                        Style="{StaticResource AccentButtonStyle}" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+
+            <ScrollViewer
+                x:Name="MainScrollViewer"
+                Grid.Row="1"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalContentAlignment="Stretch"
+                VerticalScrollBarVisibility="Disabled">
             <Grid
                 MinHeight="{Binding ActualHeight, ElementName=MainScrollViewer}"
                 Padding="36,24,40,28">
@@ -1370,295 +1385,10 @@
                         </Border>
                     </Grid>
                 </Grid>
-
-                <Grid
+                <views:SettingsPageView
                     x:Name="SettingsPage"
-                    Visibility="{Binding IsSettingsPage, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="20" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Spacing="7">
-                        <TextBlock Style="{StaticResource PageTitleStyle}" Text="{Binding PageTitle}" />
-                        <TextBlock
-                            MaxWidth="820"
-                            HorizontalAlignment="Left"
-                            FontSize="15"
-                            Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                            Text="{Binding PageDescription}"
-                            TextWrapping="Wrap" />
-                    </StackPanel>
-
-                    <Grid Grid.Row="2" MaxWidth="1240" HorizontalAlignment="Left" ColumnDefinitions="7*,18,5*">
-                        <Border Grid.Column="0" Padding="24" Style="{StaticResource SurfaceCardStyle}">
-                            <StackPanel Spacing="16">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock
-                                            FontFamily="Segoe UI Variable Display"
-                                            FontSize="21"
-                                            FontWeight="SemiBold"
-                                            Text="性能覆盖层" />
-                                        <TextBlock
-                                            Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                            Text="只采集当前已确认的本地游戏进程，不上传指标。"
-                                            TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <ToggleSwitch
-                                        Grid.Column="1"
-                                        AutomationProperties.Name="启用性能覆盖层"
-                                        IsOn="{Binding IsOverlayEnabled, Mode=TwoWay}"
-                                        OffContent="关闭"
-                                        OnContent="启用" />
-                                </Grid>
-
-                                <Grid ColumnDefinitions="*,14,*,14,*">
-                                    <StackPanel Spacing="6">
-                                        <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="位置" />
-                                        <ComboBox
-                                            HorizontalAlignment="Stretch"
-                                            AutomationProperties.Name="覆盖层位置"
-                                            ItemsSource="{Binding OverlayPositionOptions}"
-                                            SelectedItem="{Binding SelectedOverlayPosition, Mode=TwoWay}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Spacing="6">
-                                        <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="缩放" />
-                                        <ComboBox
-                                            HorizontalAlignment="Stretch"
-                                            AutomationProperties.Name="覆盖层缩放"
-                                            ItemsSource="{Binding OverlayScaleOptions}"
-                                            SelectedItem="{Binding OverlayScalePercent, Mode=TwoWay}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="4" Spacing="6">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="背景不透明度" />
-                                            <TextBlock Grid.Column="1" FontSize="12" Text="{Binding OverlayOpacityText}" />
-                                        </Grid>
-                                        <Slider
-                                            AutomationProperties.Name="覆盖层背景不透明度"
-                                            Minimum="50"
-                                            Maximum="95"
-                                            SmallChange="1"
-                                            StepFrequency="1"
-                                            Value="{Binding OverlayOpacityPercent, Mode=TwoWay}" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <StackPanel Spacing="7">
-                                    <TextBlock FontSize="12" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="显示指标" />
-                                    <Grid ColumnDefinitions="*,*,*,*">
-                                        <CheckBox Content="FPS" IsChecked="{Binding ShowOverlayFps, Mode=TwoWay}" />
-                                        <CheckBox Grid.Column="1" Content="CPU" IsChecked="{Binding ShowOverlayCpu, Mode=TwoWay}" />
-                                        <CheckBox Grid.Column="2" Content="GPU" IsChecked="{Binding ShowOverlayGpu, Mode=TwoWay}" />
-                                        <CheckBox Grid.Column="3" Content="RAM" IsChecked="{Binding ShowOverlayRam, Mode=TwoWay}" />
-                                    </Grid>
-                                </StackPanel>
-
-                                <Grid ColumnDefinitions="3*,16,2*">
-                                    <TextBox
-                                        AutomationProperties.Name="覆盖层显示隐藏快捷键"
-                                        Header="显示 / 隐藏快捷键"
-                                        PlaceholderText="例如 Ctrl+Shift+F12"
-                                        Text="{Binding OverlayToggleHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    <ToggleSwitch
-                                        Grid.Column="2"
-                                        VerticalAlignment="Bottom"
-                                        AutomationProperties.Name="游戏不在前台时隐藏覆盖层"
-                                        Header="前台行为"
-                                        IsOn="{Binding HideOverlayWhenGameNotForeground, Mode=TwoWay}"
-                                        OffContent="始终显示"
-                                        OnContent="切走时隐藏" />
-                                </Grid>
-
-                                <Grid ColumnDefinitions="Auto,14,*">
-                                    <Button
-                                        AutomationProperties.Name="保存覆盖层设置"
-                                        Command="{Binding SaveOverlaySettingsCommand}"
-                                        Content="保存并应用"
-                                        Style="{StaticResource AccentButtonStyle}" />
-                                    <TextBlock
-                                        Grid.Column="2"
-                                        VerticalAlignment="Center"
-                                        Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                        Text="{Binding OverlaySettingsStatus}"
-                                        TextWrapping="Wrap" />
-                                </Grid>
-
-                                <Border
-                                    Padding="14"
-                                    Background="{ThemeResource GameNestHeroBrush}"
-                                    BorderBrush="{ThemeResource GameNestBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10">
-                                    <Grid ColumnDefinitions="26,*">
-                                        <FontIcon FontSize="15" Foreground="{ThemeResource GameNestAccentBrush}" Glyph="&#xE72E;" />
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                            Text="普通权限运行；不注入、不 Hook、不修改游戏内存。独占全屏不可见时请切换为无边框全屏。"
-                                            TextWrapping="Wrap" />
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-
-                        <StackPanel Grid.Column="2" Spacing="14">
-                            <Border Padding="20" Style="{StaticResource SurfaceCardStyle}">
-                                <StackPanel Spacing="10">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock
-                                            FontFamily="Segoe UI Variable Display"
-                                            FontSize="18"
-                                            FontWeight="SemiBold"
-                                            Text="实时样式预览" />
-                                        <TextBlock Grid.Column="1" FontSize="11" Foreground="{ThemeResource GameNestSecondaryTextBrush}" Text="示例值" />
-                                    </Grid>
-                                    <Border
-                                        Padding="16,13"
-                                        Background="#FF171A1F"
-                                        CornerRadius="10"
-                                        Opacity="{Binding OverlayPreviewOpacity}">
-                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Spacing="16">
-                                            <TextBlock Foreground="#FF62C981" FontFamily="Cascadia Mono" FontWeight="SemiBold" Text="FPS 118" Visibility="{Binding ShowOverlayFps, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                            <TextBlock Foreground="#FF549EFF" FontFamily="Cascadia Mono" FontWeight="SemiBold" Text="CPU 34%" Visibility="{Binding ShowOverlayCpu, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                            <TextBlock Foreground="#FFF4A656" FontFamily="Cascadia Mono" FontWeight="SemiBold" Text="GPU 87%" Visibility="{Binding ShowOverlayGpu, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                            <TextBlock Foreground="#FFBB86FC" FontFamily="Cascadia Mono" FontWeight="SemiBold" Text="RAM 6.8 GB" Visibility="{Binding ShowOverlayRam, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                        </StackPanel>
-                                    </Border>
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        FontSize="11"
-                                        Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                        Text="{Binding OverlayPreviewSummary}" />
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                        Text="{Binding OverlayRuntimeStatusText}"
-                                        TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-
-                            <Border Padding="20" Style="{StaticResource SurfaceCardStyle}">
-                                <StackPanel Spacing="10">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock
-                                            FontFamily="Segoe UI Variable Display"
-                                            FontSize="18"
-                                            FontWeight="SemiBold"
-                                            Text="兼容性检测" />
-                                        <Button
-                                            Grid.Column="1"
-                                            AutomationProperties.Name="检测覆盖层兼容性"
-                                            Command="{Binding CheckOverlayCompatibilityCommand}"
-                                            Content="开始检测"
-                                            Style="{StaticResource QuietButtonStyle}" />
-                                    </Grid>
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                        Text="{Binding OverlayCompatibilityStatus}"
-                                        TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-
-                            <Border Padding="20" Style="{StaticResource SurfaceCardStyle}">
-                                <StackPanel Spacing="10">
-                                    <TextBlock
-                                        FontFamily="Segoe UI Variable Display"
-                                        FontSize="18"
-                                        FontWeight="SemiBold"
-                                        Text="应用外观" />
-                                    <Grid ColumnDefinitions="*,*,*">
-                                        <RadioButton
-                                            AutomationProperties.Name="使用浅色主题"
-                                            Command="{Binding UseLightThemeCommand}"
-                                            Content="浅色"
-                                            GroupName="ThemePreference"
-                                            IsChecked="{Binding IsLightTheme, Mode=OneWay}" />
-                                        <RadioButton
-                                            Grid.Column="1"
-                                            AutomationProperties.Name="使用深色主题"
-                                            Command="{Binding UseDarkThemeCommand}"
-                                            Content="深色"
-                                            GroupName="ThemePreference"
-                                            IsChecked="{Binding IsDarkTheme, Mode=OneWay}" />
-                                        <RadioButton
-                                            Grid.Column="2"
-                                            AutomationProperties.Name="跟随系统主题"
-                                            Command="{Binding UseSystemThemeCommand}"
-                                            Content="跟随系统"
-                                            GroupName="ThemePreference"
-                                            IsChecked="{Binding IsSystemTheme, Mode=OneWay}" />
-                                    </Grid>
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                        Text="{Binding StartupStatus}"
-                                        TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-
-                            <Border Padding="20" Style="{StaticResource SurfaceCardStyle}">
-                                <StackPanel Spacing="12">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Spacing="3">
-                                            <TextBlock
-                                                FontFamily="Segoe UI Variable Display"
-                                                FontSize="18"
-                                                FontWeight="SemiBold"
-                                                Text="数据与维护" />
-                                            <TextBlock
-                                                FontSize="12"
-                                                Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                                Text="备份、缓存清理和诊断导出都只在本机执行。"
-                                                TextWrapping="Wrap" />
-                                        </StackPanel>
-                                        <FontIcon
-                                            Grid.Column="1"
-                                            FontSize="18"
-                                            Foreground="{ThemeResource GameNestAccentBrush}"
-                                            Glyph="&#xE74E;" />
-                                    </Grid>
-                                    <Grid ColumnDefinitions="*,8,*">
-                                        <Button
-                                            HorizontalAlignment="Stretch"
-                                            HorizontalContentAlignment="Center"
-                                            AutomationProperties.Name="立即备份本地数据库"
-                                            Command="{Binding CreateBackupCommand}"
-                                            Content="立即备份"
-                                            IsEnabled="{Binding IsMaintenanceIdle}"
-                                            Style="{StaticResource QuietButtonStyle}" />
-                                        <Button
-                                            Grid.Column="2"
-                                            HorizontalAlignment="Stretch"
-                                            HorizontalContentAlignment="Center"
-                                            AutomationProperties.Name="清理无引用图片缓存"
-                                            Command="{Binding CleanupImageCacheCommand}"
-                                            Content="清理缓存"
-                                            IsEnabled="{Binding IsMaintenanceIdle}"
-                                            Style="{StaticResource QuietButtonStyle}" />
-                                    </Grid>
-                                    <Button
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Center"
-                                        AutomationProperties.HelpText="导出系统信息、数据库统计和脱敏日志；不包含游戏路径、数据库内容或凭据"
-                                        AutomationProperties.Name="导出脱敏诊断信息"
-                                        Click="ExportDiagnostics_Click"
-                                        Content="导出诊断信息…"
-                                        IsEnabled="{Binding IsMaintenanceIdle}"
-                                        Style="{StaticResource AccentButtonStyle}" />
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{ThemeResource GameNestSecondaryTextBrush}"
-                                        Text="{Binding MaintenanceStatus}"
-                                        TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-                </Grid>
+                    ExportDiagnosticsRequested="ExportDiagnostics_Click"
+                    Visibility="{Binding IsSettingsPage, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                 <Grid
                     x:Name="GenericPage"
@@ -1721,6 +1451,7 @@
                     </Border>
                 </Grid>
             </Grid>
-        </ScrollViewer>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </Window>

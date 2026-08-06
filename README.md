@@ -1,6 +1,6 @@
 # GameNest
 
-GameNest 是一个本地优先的 Windows 单机游戏启动器。本仓库当前实现到 **Phase 6：发布**；真实 FPS 在当前开发机因普通用户 ETW 权限受阻，仍按用户决定延期到家中环境补测。产品与技术约束以 [`docs/product-plan.md`](docs/product-plan.md) 为准。
+GameNest 是一个本地优先的 Windows 单机游戏启动器。本仓库当前实现到 **Phase 7：GitHub Release 在线升级**；真实 FPS 在当前开发机因普通用户 ETW 权限受阻，仍按用户决定延期到家中环境补测。产品与技术约束以 [`docs/product-plan.md`](docs/product-plan.md) 为准。
 
 ## 当前范围
 
@@ -28,7 +28,7 @@ Phase 0 至 Phase 3 的工程骨架、游戏库、扫描和可靠运行之外，
 - 全局和按游戏覆盖配置、设置页实时示例预览、普通权限兼容性检测；
 - DX11、DX12、OpenGL 可控渲染程序和不写用户游戏库的隔离验收工具。
 
-Phase 5 已提供可插拔元数据接口、来源归因和撤销机制，当前默认使用完整手工流程且不访问网络。Phase 6 增加每日自动备份、引用感知缓存清理、脱敏诊断导出、x64 自包含便携包和带数据保留选择的卸载脚本。以下功能尚未实现：Epic/GOG 平台适配、正式在线元数据提供者、帧时间曲线、温度/功耗、1% Low、安装器和代码签名。图形 API Hook、DLL 注入、默认提权和绕过反作弊明确不做。
+Phase 5 已提供可插拔元数据接口、来源归因和撤销机制，当前默认使用完整手工流程且不访问网络。Phase 6 增加每日自动备份、引用感知缓存清理、脱敏诊断导出、x64 自包含便携包和带数据保留选择的卸载脚本。Phase 7 增加公开 GitHub Release 检查、ETag/24 小时缓存、ECDSA 清单信任链、异步下载与安全解压、同卷便携目录交换、健康确认和数据库回滚。当前未配置生产公钥，因此 0.2.0 只检查并打开下载页，不会安装未受信资产。以下功能尚未实现：Epic/GOG 平台适配、正式在线元数据提供者、帧时间曲线、温度/功耗、1% Low、安装器和 Authenticode 代码签名。图形 API Hook、DLL 注入、默认提权和绕过反作弊明确不做。
 
 ## 固定工具链
 
@@ -83,6 +83,7 @@ Phase 5 已提供可插拔元数据接口、来源归因和撤销机制，当前
 
 ```powershell
 & '.\scripts\Publish-Portable.ps1'
+& '.\scripts\Test-UpdateRelease.ps1'
 ```
 
 用户操作与卸载说明见 [`docs/user-guide.md`](docs/user-guide.md)，发布流程与干净环境清单见 [`docs/release-guide.md`](docs/release-guide.md)。
@@ -148,4 +149,4 @@ tests/
   render-probes/            DX11、DX12、OpenGL 最小渲染程序
 ```
 
-依赖方向和关键取舍见 [`docs/architecture-decisions.md`](docs/architecture-decisions.md)。Phase 6 验收见 [`docs/phase-6-verification.md`](docs/phase-6-verification.md)，兼容性见 [`docs/overlay-compatibility.md`](docs/overlay-compatibility.md)，本地数据说明见 [`docs/privacy.md`](docs/privacy.md)，第三方声明见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
+依赖方向和关键取舍见 [`docs/architecture-decisions.md`](docs/architecture-decisions.md)。Phase 7 验收见 [`docs/phase-7-verification.md`](docs/phase-7-verification.md)，兼容性见 [`docs/overlay-compatibility.md`](docs/overlay-compatibility.md)，本地数据说明见 [`docs/privacy.md`](docs/privacy.md)，第三方声明见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。

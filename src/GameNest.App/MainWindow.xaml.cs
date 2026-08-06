@@ -20,6 +20,8 @@ public sealed partial class MainWindow : Window, IDisposable
         ViewModel = viewModel;
         InitializeComponent();
         ContentRoot.DataContext = ViewModel;
+        ViewModel.UpdateInstallerStarted += HandleUpdateInstallerStarted;
+        ViewModel.OpenUpdatePageRequested += HandleOpenUpdatePageRequested;
 
         Title = "GameNest";
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Brand", "GameNest.ico"));
@@ -487,8 +489,24 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         _ = sender;
         _ = args;
+        ViewModel.UpdateInstallerStarted -= HandleUpdateInstallerStarted;
+        ViewModel.OpenUpdatePageRequested -= HandleOpenUpdatePageRequested;
         _windowLifetime.Cancel();
         Dispose();
+    }
+
+    private void HandleUpdateInstallerStarted() => Close();
+
+    private async void HandleOpenUpdatePageRequested(Uri releasePageUri)
+    {
+        try
+        {
+            await Windows.System.Launcher.LaunchUriAsync(releasePageUri);
+        }
+        catch (Exception)
+        {
+            ViewModel.StatusMessage = "无法打开 GitHub 下载页，请稍后重试。";
+        }
     }
 
     public void Dispose()

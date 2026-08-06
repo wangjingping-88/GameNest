@@ -2,15 +2,23 @@
 param(
     [string]$DotNetPath = 'D:\Program Files\dotnet\dotnet.exe',
     [string]$PresentMonPath = 'D:\Program Files\GameNest\PresentMon\2.5.1\PresentMon-2.5.1-x64.exe',
-    [string]$Version = '0.1.0'
+    [string]$Version
 )
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    [xml]$buildProps = Get-Content -LiteralPath (Join-Path $repositoryRoot 'Directory.Build.props') -Raw -Encoding UTF8
+    $Version = $buildProps.SelectSingleNode('/Project/PropertyGroup/Version').InnerText.Trim()
+}
+if ($Version -notmatch '^\d+\.\d+\.\d+$') {
+    throw "Version must be MAJOR.MINOR.PATCH: $Version"
+}
 $artifactRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts\release'))
 $packageName = "GameNest-$Version-win-x64-portable"
 $packageRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot $packageName))
 $zipPath = [IO.Path]::GetFullPath((Join-Path $artifactRoot "$packageName.zip"))
+$hashPath = [IO.Path]::GetFullPath((Join-Path $artifactRoot "$packageName.sha256"))
 $projectPath = Join-Path $repositoryRoot 'src\GameNest.App\GameNest.App.csproj'
 $appBuildOutput = Join-Path $repositoryRoot 'src\GameNest.App\bin\Release\net10.0-windows10.0.19041.0\win-x64'
 $overlayOutput = Join-Path $repositoryRoot 'src\GameNest.Overlay\bin\Release\net10.0-windows10.0.19041.0\win-x64'
@@ -42,6 +50,9 @@ if (Test-Path -LiteralPath $packageRoot) {
 }
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
+}
+if (Test-Path -LiteralPath $hashPath) {
+    Remove-Item -LiteralPath $hashPath -Force
 }
 
 & $DotNetPath publish $projectPath -c Release --no-restore -r win-x64 --self-contained true `
@@ -108,13 +119,14 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Release audit failed.'
 }
 
-Compress-Archive -LiteralPath $packageRoot -DestinationPath $zipPath -CompressionLevel Optimal
+Compress-Archive -Path (Join-Path $packageRoot '*') -DestinationPath $zipPath -CompressionLevel Optimal
 $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
 [IO.File]::WriteAllText(
-    "$zipPath.sha256",
+    $hashPath,
     "$zipHash  $([IO.Path]::GetFileName($zipPath))`r`n",
     [Text.UTF8Encoding]::new($false))
 
 Write-Host "Portable directory: $packageRoot"
 Write-Host "Portable archive: $zipPath"
+Write-Host "SHA256 file: $hashPath"
 Write-Host "SHA256: $zipHash"

@@ -3,6 +3,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
+            <BitmapImage x:Key="GameNestHorizontalLogoSource" UriSource="ms-appx:///Assets/Brand/GameNest_Logo_Horizontal.png" />
+            <SolidColorBrush x:Key="GameNestLogoBackgroundBrush" Color="#FFF7FAFE" />
+            <SolidColorBrush x:Key="GameNestLogoBorderBrush" Color="#242688F4" />
             <SolidColorBrush x:Key="GameNestCanvasBrush" Color="#F5F7FA" />
             <SolidColorBrush x:Key="GameNestNavigationBrush" Color="#FBFCFE" />
             <SolidColorBrush x:Key="GameNestSurfaceBrush" Color="#FFFFFF" />
@@ -29,6 +32,9 @@
             </LinearGradientBrush>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
+            <BitmapImage x:Key="GameNestHorizontalLogoSource" UriSource="ms-appx:///Assets/Brand/GameNest_Logo_Horizontal_Dark.png" />
+            <SolidColorBrush x:Key="GameNestLogoBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="GameNestLogoBorderBrush" Color="Transparent" />
             <SolidColorBrush x:Key="GameNestCanvasBrush" Color="#11151B" />
             <SolidColorBrush x:Key="GameNestNavigationBrush" Color="#151A21" />
             <SolidColorBrush x:Key="GameNestSurfaceBrush" Color="#1A2029" />
@@ -55,6 +61,9 @@
             </LinearGradientBrush>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
+            <BitmapImage x:Key="GameNestHorizontalLogoSource" UriSource="ms-appx:///Assets/Brand/GameNest_Logo_Horizontal.png" />
+            <SolidColorBrush x:Key="GameNestLogoBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GameNestLogoBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="GameNestCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="GameNestNavigationBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="GameNestSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
