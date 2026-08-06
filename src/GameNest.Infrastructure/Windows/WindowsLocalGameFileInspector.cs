@@ -9,6 +9,9 @@ namespace GameNest.Infrastructure.Windows;
 
 public sealed class WindowsLocalGameFileInspector : ILocalGameFileInspector
 {
+    private const int MaxShortcutPathLength = 260;
+    private const int MaxShortcutArgumentsLength = 1024;
+
     public Task<LocalGameFileInspection> InspectAsync(
         string path,
         CancellationToken cancellationToken)
@@ -80,7 +83,7 @@ public sealed class WindowsLocalGameFileInspector : ILocalGameFileInspector
         try
         {
             ((IPersistFile)shellLink).Load(shortcutPath, 0);
-            var targetPath = new StringBuilder(32768);
+            var targetPath = new StringBuilder(MaxShortcutPathLength);
             shellLink.GetPath(targetPath, targetPath.Capacity, out _, 0);
             var executablePath = Environment.ExpandEnvironmentVariables(targetPath.ToString().Trim());
             if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
@@ -93,9 +96,9 @@ public sealed class WindowsLocalGameFileInspector : ILocalGameFileInspector
                 throw new NotSupportedException("当前阶段只支持指向 EXE 的快捷方式。");
             }
 
-            var argumentsBuffer = new StringBuilder(32768);
+            var argumentsBuffer = new StringBuilder(MaxShortcutArgumentsLength);
             shellLink.GetArguments(argumentsBuffer, argumentsBuffer.Capacity);
-            var workingDirectoryBuffer = new StringBuilder(32768);
+            var workingDirectoryBuffer = new StringBuilder(MaxShortcutPathLength);
             shellLink.GetWorkingDirectory(workingDirectoryBuffer, workingDirectoryBuffer.Capacity);
             var workingDirectory = Environment.ExpandEnvironmentVariables(workingDirectoryBuffer.ToString().Trim());
             if (string.IsNullOrWhiteSpace(workingDirectory))
@@ -104,7 +107,7 @@ public sealed class WindowsLocalGameFileInspector : ILocalGameFileInspector
                     ?? throw new InvalidOperationException("无法确定快捷方式的工作目录。");
             }
 
-            var iconPathBuffer = new StringBuilder(32768);
+            var iconPathBuffer = new StringBuilder(MaxShortcutPathLength);
             shellLink.GetIconLocation(iconPathBuffer, iconPathBuffer.Capacity, out _);
             var iconPath = Environment.ExpandEnvironmentVariables(iconPathBuffer.ToString().Trim());
             if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
