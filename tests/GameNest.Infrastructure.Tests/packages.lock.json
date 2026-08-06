@@ -118,11 +118,6 @@
         "resolved": "2.1.11",
         "contentHash": "PK0GLFkfhZzLQeR3PJf71FmhtHox+U3vcY6ZtswoMjrefkB9k6ErNJEnwXqc5KgXDSjige2XXrezqS39gkpQKA=="
       },
-      "SQLitePCLRaw.lib.e_sqlite3": {
-        "type": "Transitive",
-        "resolved": "2.1.11",
-        "contentHash": "Ev2ytaXiOlWZ4b3R67GZBsemTINslLD1DCJr2xiacpn4tbapu0Q4dHEzSvZSMnVWeE5nlObU3VZN2p81q3XOYQ=="
-      },
       "SQLitePCLRaw.provider.e_sqlite3": {
         "type": "Transitive",
         "resolved": "2.1.11",
@@ -201,7 +196,7 @@
       "gamenest.application": {
         "type": "Project",
         "dependencies": {
-          "GameNest.Domain": "[1.0.0, )"
+          "GameNest.Domain": "[0.2.1, )"
         }
       },
       "gamenest.domain": {
@@ -210,9 +205,9 @@
       "gamenest.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "GameNest.Application": "[1.0.0, )",
-          "GameNest.Domain": "[1.0.0, )",
-          "GameNest.Telemetry": "[1.0.0, )",
+          "GameNest.Application": "[0.2.1, )",
+          "GameNest.Domain": "[0.2.1, )",
+          "GameNest.Telemetry": "[0.2.1, )",
           "Microsoft.Data.Sqlite": "[10.0.10, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.10, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.10, )"
@@ -221,7 +216,7 @@
       "gamenest.telemetry": {
         "type": "Project",
         "dependencies": {
-          "GameNest.Application": "[1.0.0, )",
+          "GameNest.Application": "[0.2.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.10, )"
         }
       },
@@ -250,6 +245,12 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.10"
         }
+      },
+      "SQLitePCLRaw.lib.e_sqlite3": {
+        "type": "CentralTransitive",
+        "requested": "[2.1.12, )",
+        "resolved": "2.1.12",
+        "contentHash": "fWi8Dbknuhgg72fWinIdjXVaqO1hHL4YBBwVLnr7e1c9TAZwJ0QE38j9syW1hwx6HaqEVTwI+O07WPdZn8Rp0w=="
       }
     }
   }

@@ -18,9 +18,9 @@
 
 输出（版本从 `Directory.Build.props` 读取）：
 
-- `artifacts\release\GameNest-0.2.0-win-x64-portable\`
-- `artifacts\release\GameNest-0.2.0-win-x64-portable.zip`
-- `artifacts\release\GameNest-0.2.0-win-x64-portable.sha256`
+- `artifacts\release\GameNest-0.2.1-win-x64-portable\`
+- `artifacts\release\GameNest-0.2.1-win-x64-portable.zip`
+- `artifacts\release\GameNest-0.2.1-win-x64-portable.sha256`
 
 发布脚本会重新执行 Release publish、复制覆盖层和固定 PresentMon、移除 PDB，并调用 `Verify-ReleasePackage.ps1` 检查必需文件、PresentMon 哈希、调试产物、测试密钥、私钥和绝对开发机路径。
 
@@ -35,8 +35,8 @@
 ```
 
 - 私钥内容保存到 GitHub Secret `GAMENEST_UPDATE_PRIVATE_KEY`，不得提交、粘贴到 issue 或出现在日志。
-- 公钥及 `keyId` 经审核后分别配置为 GitHub Variables `GAMENEST_UPDATE_PUBLIC_KEY`、`GAMENEST_UPDATE_KEY_ID`，并把同一公钥加入客户端 `ApplicationUpdateOptions.TrustedKeys` 后重新完成 0.2.0 发布验收。
-- 当前工作区没有生产公钥，0.2.0 只能检查并打开下载页；不要把临时测试密钥冒充生产密钥。
+- 公钥及 `keyId` 经审核后分别配置为 GitHub Variables `GAMENEST_UPDATE_PUBLIC_KEY`、`GAMENEST_UPDATE_KEY_ID`，并把同一公钥加入客户端 `ApplicationUpdateOptions.TrustedKeys` 后重新完成 0.2.1 发布验收。
+- 当前工作区没有生产公钥，0.2.1 只能检查并打开下载页；不要把临时测试密钥冒充生产密钥。
 
 推送严格的 `vMAJOR.MINOR.PATCH` tag 后，`.github/workflows/release.yml` 会固定使用 .NET 10.0.302，下载并校验 PresentMon 2.5.1，运行全部测试、生成便携包、签名清单、执行资产审计并创建 Release。缺少任一签名配置时工作流在发布前失败。
 
@@ -53,7 +53,7 @@
 & '.\scripts\Test-UpdateRelease.ps1'
 ```
 
-该脚本只使用进程内临时密钥，产物不得发布。实际 `0.2.0` Release、生产 Secret、功能提交和推送都需要单独授权。
+该脚本只使用进程内临时密钥，产物不得发布。实际 `0.2.1` Release、生产 Secret、功能提交和推送都需要单独授权。
 
 ## 干净 Windows 验收
 
