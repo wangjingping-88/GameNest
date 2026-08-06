@@ -90,11 +90,13 @@ jobs:
             -PackageFile $zip `
             -Version $env:RELEASE_VERSION `
             -KeyId $env:GAMENEST_UPDATE_KEY_ID `
-            -PublishedAtUtc ([DateTimeOffset]::UtcNow)
+            -PublishedAtUtc ([DateTimeOffset]::UtcNow) `
+            -DotNetPath (Get-Command dotnet).Source
           .\scripts\Audit-ReleaseAssets.ps1 `
             -ArtifactDirectory '.\artifacts\release' `
             -Version $env:RELEASE_VERSION `
-            -PublicKeyBase64 $env:GAMENEST_UPDATE_PUBLIC_KEY
+            -PublicKeyBase64 $env:GAMENEST_UPDATE_PUBLIC_KEY `
+            -DotNetPath (Get-Command dotnet).Source
 
       - name: Publish trusted GitHub Release
         shell: pwsh
