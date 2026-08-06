@@ -33,7 +33,8 @@ Phase 7 只更新 GameNest 自身，不下载或更新游戏。实现包含公�
 ## 验证结果
 
 - `dotnet build GameNest.sln -c Release --no-restore`：通过，0 警告、0 错误。
-- `scripts/Test-Release.ps1 -NoBuild`：通过，Domain 18、Application 34、Infrastructure 56、Telemetry 17，共 125 项，0 失败、0 跳过。
+- `scripts/Test-Release.ps1 -NoBuild`：通过，Domain 18、Application 34、Infrastructure 57、Telemetry 17，共 126 项；本机 0 失败、0 跳过。
+- Windows `.lnk` 参数与工作目录读取属于交互式 Shell 集成测试：本机 Windows 桌面会话执行；GitHub Hosted Runner 的非交互会话会明确跳过，避免其 `E_INVALIDARG` COM 限制导致错误的 CI 失败。
 - `scripts/Publish-Portable.ps1`：待 0.2.2 Release 验收时生成 x64 self-contained 便携目录和 ZIP，并执行包内容审计。
 - ZIP SHA-256：`1A4125875F3D94486EA4103B79489E4A01981F03DD0648E0E8A9CD44F90131BD`。
 - ZIP 根布局：`.gamenest-portable-root`、`GameNest.App.exe`、`VERSION.txt` 均位于根目录，满足升级器安全解压契约。

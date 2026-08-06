@@ -48,7 +48,9 @@ public sealed class WindowsLocalGameFileInspectorTests
         Assert.Contains(".lnk", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [Fact(
+        Skip = "需要交互式 Windows Shell 会话；GitHub Hosted Runner 的非交互会话不支持此集成测试。",
+        SkipUnless = nameof(SupportsInteractiveShellShortcutIntegration))]
     public async Task InspectAsyncResolvesShortcutTargetArgumentsAndWorkingDirectory()
     {
         using var directory = TemporaryDirectory.Create();
@@ -72,6 +74,14 @@ public sealed class WindowsLocalGameFileInspectorTests
         Assert.Equal(GameSourceType.ManualShortcut, inspection.SourceType);
         Assert.Equal(LaunchKind.Shortcut, inspection.LaunchKind);
     }
+
+    public static bool SupportsInteractiveShellShortcutIntegration =>
+        OperatingSystem.IsWindows() &&
+        Environment.UserInteractive &&
+        !string.Equals(
+            Environment.GetEnvironmentVariable("GITHUB_ACTIONS"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
 
     private static void CreateShortcut(
         string shortcutPath,
