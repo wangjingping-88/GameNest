@@ -152,9 +152,22 @@ internal sealed class TemporaryDirectory : IDisposable
     {
         SqliteConnection.ClearAllPools();
 
-        if (Directory.Exists(Path))
+        const int maximumAttempts = 40;
+        for (var attempt = 1; attempt <= maximumAttempts && Directory.Exists(Path); attempt++)
         {
-            Directory.Delete(Path, recursive: true);
+            try
+            {
+                Directory.Delete(Path, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < maximumAttempts)
+            {
+                Thread.Sleep(50);
+            }
+            catch (UnauthorizedAccessException) when (attempt < maximumAttempts)
+            {
+                Thread.Sleep(50);
+            }
         }
     }
 }

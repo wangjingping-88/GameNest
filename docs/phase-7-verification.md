@@ -10,7 +10,7 @@ Phase 7 只更新 GameNest 自身，不下载或更新游戏。实现包含公�
 - 目标框架：`net10.0-windows10.0.19041.0`
 - Windows App SDK / WinUI 3：2.3.1 Stable
 - NuGet：沿用 `Directory.Packages.props` 和锁定文件，无新增包
-- GameNest：0.2.2
+- GameNest：0.2.3
 
 ## 自动化覆盖
 
@@ -25,8 +25,8 @@ Phase 7 只更新 GameNest 自身，不下载或更新游戏。实现包含公�
 
 ## 人工与外部验证边界
 
-- 0.2.2 客户端内置 `GAMENESTPUBLIC` 生产受信公钥；GitHub Release 仍必须同时配置对应私钥 Secret、公钥 Variable 和 `keyId` Variable，缺任一项即拒绝发布。
-- 0.1.0 没有更新客户端；`v0.2.0` 因 SQLite 依赖安全告警被 CI 拒绝，`v0.2.1` 因签名配置尚未完成而未创建 Release。两者均须手动安装 0.2.2；真实在线升级以 0.2.2 到 0.2.3 验证。
+- 0.2.3 客户端内置 `GAMENESTPUBLIC` 生产受信公钥；GitHub Release 仍必须同时配置对应私钥 Secret、公钥 Variable 和 `keyId` Variable，缺任一项即拒绝发布。
+- 0.1.0 没有更新客户端；`v0.2.0` 因 SQLite 依赖安全告警被 CI 拒绝，`v0.2.1` 因签名配置尚未完成而未创建 Release，`v0.2.2` 因更新器临时目录测试清理竞争未创建 Release。三者均须手动安装 0.2.3；真实在线升级以 0.2.3 到 0.2.4 验证。
 - 本次不创建实际 GitHub Release，不设置生产 GitHub Secret，不提交或推送 Phase 7。
 - 目录不可写、SmartScreen、断电中断和干净 Windows 实机仍需在正式发布前人工复核；独立更新签名不能替代 Authenticode。
 
@@ -35,7 +35,8 @@ Phase 7 只更新 GameNest 自身，不下载或更新游戏。实现包含公�
 - `dotnet build GameNest.sln -c Release --no-restore`：通过，0 警告、0 错误。
 - `scripts/Test-Release.ps1 -NoBuild`：通过，Domain 18、Application 34、Infrastructure 57、Telemetry 17，共 126 项；本机 0 失败、0 跳过。
 - Windows `.lnk` 参数与工作目录读取属于交互式 Shell 集成测试：本机 Windows 桌面会话执行；GitHub Hosted Runner 的非交互会话会明确跳过，避免其 `E_INVALIDARG` COM 限制导致错误的 CI 失败。
-- `scripts/Publish-Portable.ps1`：待 0.2.2 Release 验收时生成 x64 self-contained 便携目录和 ZIP，并执行包内容审计。
+- 便携更新集成测试的临时目录清理会对 Windows 文件句柄和安全扫描进行有限重试；超过 2 秒仍被占用时测试保持失败，不会强制终止任何进程。
+- `scripts/Publish-Portable.ps1`：待 0.2.3 Release 验收时生成 x64 self-contained 便携目录和 ZIP，并执行包内容审计。
 - ZIP SHA-256：`1A4125875F3D94486EA4103B79489E4A01981F03DD0648E0E8A9CD44F90131BD`。
 - ZIP 根布局：`.gamenest-portable-root`、`GameNest.App.exe`、`VERSION.txt` 均位于根目录，满足升级器安全解压契约。
 - `scripts/Test-UpdateRelease.ps1`：通过，使用进程内临时 P-256 密钥生成并验证 `.update.json` / `.update.sig`，四项资产命名、版本、大小、SHA-256、签名及敏感内容审计通过；临时密钥已删除。

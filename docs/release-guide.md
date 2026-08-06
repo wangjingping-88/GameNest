@@ -18,9 +18,9 @@
 
 输出（版本从 `Directory.Build.props` 读取）：
 
-- `artifacts\release\GameNest-0.2.2-win-x64-portable\`
-- `artifacts\release\GameNest-0.2.2-win-x64-portable.zip`
-- `artifacts\release\GameNest-0.2.2-win-x64-portable.sha256`
+- `artifacts\release\GameNest-0.2.3-win-x64-portable\`
+- `artifacts\release\GameNest-0.2.3-win-x64-portable.zip`
+- `artifacts\release\GameNest-0.2.3-win-x64-portable.sha256`
 
 发布脚本会重新执行 Release publish、复制覆盖层和固定 PresentMon、移除 PDB，并调用 `Verify-ReleasePackage.ps1` 检查必需文件、PresentMon 哈希、调试产物、测试密钥、私钥和绝对开发机路径。
 
@@ -35,7 +35,7 @@
 ```
 
 - 私钥内容保存到 GitHub Secret `GAMENEST_UPDATE_PRIVATE_KEY`，不得提交、粘贴到 issue 或出现在日志。
-- 公钥及 `keyId` 应分别配置为 GitHub Variables `GAMENEST_UPDATE_PUBLIC_KEY`、`GAMENEST_UPDATE_KEY_ID`；0.2.2 已内置同一把 `GAMENESTPUBLIC` 受信公钥。私钥仍只能保存在 GitHub Secret。
+- 公钥及 `keyId` 应分别配置为 GitHub Variables `GAMENEST_UPDATE_PUBLIC_KEY`、`GAMENEST_UPDATE_KEY_ID`；0.2.3 已内置同一把 `GAMENESTPUBLIC` 受信公钥。私钥仍只能保存在 GitHub Secret。
 
 推送严格的 `vMAJOR.MINOR.PATCH` tag 后，`.github/workflows/release.yml` 会固定使用 .NET 10.0.302，下载并校验 PresentMon 2.5.1，运行全部测试、生成便携包、签名清单、执行资产审计并创建 Release。缺少任一签名配置时工作流在发布前失败。
 
@@ -52,7 +52,7 @@
 & '.\scripts\Test-UpdateRelease.ps1'
 ```
 
-该脚本只使用进程内临时密钥，产物不得发布。实际 `0.2.2` Release 仍以 GitHub Secret、Variables 和 tag 工作流的验收结果为准。
+该脚本只使用进程内临时密钥，产物不得发布。实际 `0.2.3` Release 仍以 GitHub Secret、Variables 和 tag 工作流的验收结果为准。
 
 ## 干净 Windows 验收
 
