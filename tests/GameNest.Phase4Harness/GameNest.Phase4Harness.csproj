@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GameNest.Application\GameNest.Application.csproj" />
+    <ProjectReference Include="..\..\src\GameNest.Domain\GameNest.Domain.csproj" />
+    <ProjectReference Include="..\..\src\GameNest.Telemetry\GameNest.Telemetry.csproj" />
+    <ProjectReference
+      Include="..\..\src\GameNest.Overlay\GameNest.Overlay.csproj"
+      ReferenceOutputAssembly="false"
+      SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <PropertyGroup>
+    <OverlayOutputPath>$(MSBuildThisFileDirectory)..\..\src\GameNest.Overlay\bin\$(Configuration)\$(TargetFramework)\win-x64\</OverlayOutputPath>
+  </PropertyGroup>
+  <Target Name="CopyOverlayRuntime" AfterTargets="Build">
+    <ItemGroup>
+      <OverlayRuntimeFiles Include="$(OverlayOutputPath)**\*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(OverlayRuntimeFiles)"
+      DestinationFiles="@(OverlayRuntimeFiles->'$(OutDir)Overlay\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+</Project>

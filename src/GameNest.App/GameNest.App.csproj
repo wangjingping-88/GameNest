@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>GameNest.App</RootNamespace>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Brand\GameNest.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GameNest.Application\GameNest.Application.csproj" />
+    <ProjectReference Include="..\GameNest.Domain\GameNest.Domain.csproj" />
+    <ProjectReference Include="..\GameNest.Infrastructure\GameNest.Infrastructure.csproj" />
+    <ProjectReference Include="..\GameNest.Overlay\GameNest.Overlay.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\Brand\GameNest.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\Brand\GameNest_App_Icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\Brand\GameNest_Logo_Horizontal.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+  </ItemGroup>
+  <PropertyGroup>
+    <OverlayOutputPath>$(MSBuildThisFileDirectory)..\GameNest.Overlay\bin\$(Configuration)\$(TargetFramework)\win-x64\</OverlayOutputPath>
+  </PropertyGroup>
+  <Target Name="CopyOverlayRuntime" AfterTargets="Build">
+    <ItemGroup>
+      <OverlayRuntimeFiles Include="$(OverlayOutputPath)**\*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(OverlayRuntimeFiles)"
+      DestinationFiles="@(OverlayRuntimeFiles->'$(OutDir)Overlay\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+</Project>

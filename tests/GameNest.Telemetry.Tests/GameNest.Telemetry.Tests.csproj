@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GameNest.Telemetry\GameNest.Telemetry.csproj" />
+    <ProjectReference
+      Include="..\..\src\GameNest.Overlay\GameNest.Overlay.csproj"
+      ReferenceOutputAssembly="false"
+      SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <PropertyGroup>
+    <OverlayOutputPath>$(MSBuildThisFileDirectory)..\..\src\GameNest.Overlay\bin\$(Configuration)\$(TargetFramework)\win-x64\</OverlayOutputPath>
+  </PropertyGroup>
+  <Target Name="CopyOverlayRuntime" AfterTargets="Build">
+    <ItemGroup>
+      <OverlayRuntimeFiles Include="$(OverlayOutputPath)**\*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(OverlayRuntimeFiles)"
+      DestinationFiles="@(OverlayRuntimeFiles->'$(OutDir)Overlay\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+</Project>

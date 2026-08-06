@@ -1,0 +1,84 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="GameNestCanvasBrush" Color="#F5F7FA" />
+            <SolidColorBrush x:Key="GameNestNavigationBrush" Color="#FBFCFE" />
+            <SolidColorBrush x:Key="GameNestSurfaceBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="GameNestSecondarySurfaceBrush" Color="#F8FAFC" />
+            <SolidColorBrush x:Key="GameNestBorderBrush" Color="#DCE4EE" />
+            <SolidColorBrush x:Key="GameNestSearchBorderBrush" Color="#A9BED5" />
+            <SolidColorBrush x:Key="GameNestPrimaryTextBrush" Color="#18212F" />
+            <SolidColorBrush x:Key="GameNestSecondaryTextBrush" Color="#667085" />
+            <SolidColorBrush x:Key="GameNestAccentBrush" Color="#2688F4" />
+            <SolidColorBrush x:Key="GameNestAccentSoftBrush" Color="#EAF3FF" />
+            <SolidColorBrush x:Key="GameNestRunningBrush" Color="#22A06B" />
+            <SolidColorBrush x:Key="GameNestWarningBrush" Color="#F59E0B" />
+            <SolidColorBrush x:Key="GameNestDangerBrush" Color="#E5484D" />
+            <SolidColorBrush x:Key="GameNestMutedIconBrush" Color="#7E8A9A" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#F2F6FB" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#EAF3FF" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#DDEEFF" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#D5E9FF" />
+            <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="#176FCE" />
+            <LinearGradientBrush x:Key="GameNestHeroBrush" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Offset="0" Color="#F7FBFF" />
+                <GradientStop Offset="0.58" Color="#EAF4FF" />
+                <GradientStop Offset="1" Color="#DDEEFF" />
+            </LinearGradientBrush>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="GameNestCanvasBrush" Color="#11151B" />
+            <SolidColorBrush x:Key="GameNestNavigationBrush" Color="#151A21" />
+            <SolidColorBrush x:Key="GameNestSurfaceBrush" Color="#1A2029" />
+            <SolidColorBrush x:Key="GameNestSecondarySurfaceBrush" Color="#202833" />
+            <SolidColorBrush x:Key="GameNestBorderBrush" Color="#2E3947" />
+            <SolidColorBrush x:Key="GameNestSearchBorderBrush" Color="#58728F" />
+            <SolidColorBrush x:Key="GameNestPrimaryTextBrush" Color="#F4F7FB" />
+            <SolidColorBrush x:Key="GameNestSecondaryTextBrush" Color="#A6B0BF" />
+            <SolidColorBrush x:Key="GameNestAccentBrush" Color="#62A8F7" />
+            <SolidColorBrush x:Key="GameNestAccentSoftBrush" Color="#203A57" />
+            <SolidColorBrush x:Key="GameNestRunningBrush" Color="#44D19D" />
+            <SolidColorBrush x:Key="GameNestWarningBrush" Color="#F6B94A" />
+            <SolidColorBrush x:Key="GameNestDangerBrush" Color="#FF5F6D" />
+            <SolidColorBrush x:Key="GameNestMutedIconBrush" Color="#8E9AAA" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#202833" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#203A57" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#274766" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2D4D6D" />
+            <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="#86BEFF" />
+            <LinearGradientBrush x:Key="GameNestHeroBrush" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Offset="0" Color="#1C2A3A" />
+                <GradientStop Offset="0.58" Color="#17304B" />
+                <GradientStop Offset="1" Color="#12395D" />
+            </LinearGradientBrush>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="GameNestCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GameNestNavigationBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GameNestSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GameNestSecondarySurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GameNestBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GameNestSearchBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GameNestPrimaryTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GameNestSecondaryTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GameNestAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GameNestAccentSoftBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GameNestRunningBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GameNestWarningBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GameNestDangerBrush" Color="{ThemeResource SystemColorHotlightColor}" />
+            <SolidColorBrush x:Key="GameNestMutedIconBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="{ThemeResource SystemColorHighlightTextColor}" />
+            <SolidColorBrush x:Key="GameNestHeroBrush" Color="{ThemeResource SystemColorWindowColor}" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <CornerRadius x:Key="GameNestWindowCornerRadius">12</CornerRadius>
+    <CornerRadius x:Key="GameNestCardCornerRadius">10</CornerRadius>
+    <CornerRadius x:Key="GameNestButtonCornerRadius">8</CornerRadius>
+</ResourceDictionary>

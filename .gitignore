@@ -1,0 +1,12 @@
+artifacts/
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.obj
+AppPackages/
+Generated Files/
+TestResults/
+src/GameNest.App/BundleArtifacts/
+src/GameNest.App/Publish/
