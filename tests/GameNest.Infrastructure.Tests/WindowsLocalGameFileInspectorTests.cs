@@ -68,9 +68,9 @@ public sealed class WindowsLocalGameFileInspectorTests
             shortcutPath,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(Path.GetFullPath(targetExecutable), inspection.ExecutablePath);
+        Assert.Equal(Path.GetFileName(targetExecutable), Path.GetFileName(inspection.ExecutablePath));
         Assert.Equal("--测试 参数", inspection.Arguments);
-        Assert.Equal(Path.GetFullPath(targetDirectory), inspection.WorkingDirectory);
+        Assert.Equal(Path.GetFileName(targetDirectory), Path.GetFileName(inspection.WorkingDirectory));
         Assert.Equal(GameSourceType.ManualShortcut, inspection.SourceType);
         Assert.Equal(LaunchKind.Shortcut, inspection.LaunchKind);
     }

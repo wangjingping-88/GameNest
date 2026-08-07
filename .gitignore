@@ -1,4 +1,7 @@
 artifacts/
+preview/
+assets/game-covers/*
+!assets/game-covers/.gitkeep
 bin/
 obj/
 .vs/

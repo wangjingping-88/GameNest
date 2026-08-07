@@ -12,6 +12,7 @@ internal sealed class PresentMonFpsProvider(
     PresentMonOptions options,
     ILogger<PresentMonFpsProvider> logger) : IAsyncDisposable
 {
+    private const double MaximumPlausibleFps = 2000d;
     private static readonly Action<ILogger, int, Exception?> CaptureStarted =
         LoggerMessage.Define<int>(
             LogLevel.Information,
@@ -207,11 +208,18 @@ internal sealed class PresentMonFpsProvider(
 
                 if (parser.TryRead(line, session.ProcessId, out var frame))
                 {
-                    var fps = aggregator.Add(frame.SwapChain, frame.TimestampMilliseconds);
-                    if (fps is not null)
+                    var fps = aggregator.Add(
+                        frame.SwapChain,
+                        frame.TimestampMilliseconds,
+                        frame.MillisecondsBetweenPresents);
+                    if (fps is > 0d and <= MaximumPlausibleFps)
                     {
                         session.HasPresented = true;
-                        SetCurrent(TelemetryMetric.Available(Math.Clamp(fps.Value, 0, 10000)));
+                        SetCurrent(TelemetryMetric.Available(fps.Value));
+                    }
+                    else if (fps is > MaximumPlausibleFps)
+                    {
+                        SetCurrent(TelemetryMetric.Unavailable("FPS 时间戳异常，正在等待下一组有效呈现事件。"));
                     }
                 }
             }

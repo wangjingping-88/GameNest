@@ -12,6 +12,8 @@ public sealed class WindowsGameRuntimeService(
     GameRuntimeOptions options,
     ILogger<WindowsGameRuntimeService> logger) : IGameLaunchService, IAsyncDisposable
 {
+    private static readonly TimeSpan SteamLauncherAdoptionWindow = TimeSpan.FromSeconds(30);
+
     private static readonly Action<ILogger, string, int, Exception?> GameStarted =
         LoggerMessage.Define<string, int>(
             LogLevel.Information,
@@ -318,7 +320,7 @@ public sealed class WindowsGameRuntimeService(
                 }
 
                 var now = DateTimeOffset.UtcNow;
-                if (now - registration.Session.StartedAtUtc < options.LauncherAdoptionWindow ||
+                if (now - registration.Session.StartedAtUtc < GetLauncherAdoptionWindow(registration.Game) ||
                     now - registration.LastProcessSeenAtUtc < options.EmptyProcessGracePeriod)
                 {
                     continue;
@@ -395,13 +397,35 @@ public sealed class WindowsGameRuntimeService(
             return GameProcessConfidence.Confirmed;
         }
 
+        if (IsAuxiliaryProcess(candidate.ProcessName))
+        {
+            return GameProcessConfidence.Unconfirmed;
+        }
+
         var isInsideInstallRoot = IsPathInside(candidate.ExecutablePath, registration.Game.InstallRoot);
-        return IsDescendantOfTrackedProcess(candidate, current, registration.LineageProcessIds) && isInsideInstallRoot
-            ? GameProcessConfidence.Confirmed
-            : isInsideInstallRoot
-                ? GameProcessConfidence.Probable
-            : GameProcessConfidence.Unconfirmed;
+        if (!isInsideInstallRoot)
+        {
+            return GameProcessConfidence.Unconfirmed;
+        }
+
+        // Steam 可能由平台进程接管启动，实际游戏进程不再保留原有父子关系。
+        // 平台清单来源与安装目录边界共同作为归属依据。
+        if (registration.Game.SourceType == GameSourceType.Steam ||
+            IsDescendantOfTrackedProcess(candidate, current, registration.LineageProcessIds) ||
+            IsDescendantOfSteamClient(candidate, current))
+        {
+            return GameProcessConfidence.Confirmed;
+        }
+
+        return GameProcessConfidence.Probable;
     }
+
+    private TimeSpan GetLauncherAdoptionWindow(Game game) =>
+        IsSteamInstallRoot(game)
+            ? options.LauncherAdoptionWindow > SteamLauncherAdoptionWindow
+                ? options.LauncherAdoptionWindow
+                : SteamLauncherAdoptionWindow
+            : options.LauncherAdoptionWindow;
 
     private static bool IsDescendantOfTrackedProcess(
         ProcessSnapshotEntry candidate,
@@ -424,6 +448,40 @@ public sealed class WindowsGameRuntimeService(
 
         return false;
     }
+
+    private static bool IsDescendantOfSteamClient(
+        ProcessSnapshotEntry candidate,
+        ProcessSnapshot current)
+    {
+        var parentId = candidate.ParentProcessId;
+        var visited = new HashSet<int>();
+        for (var depth = 0; parentId is not null && depth < 32 && visited.Add(parentId.Value); depth++)
+        {
+            if (!current.Processes.TryGetValue(parentId.Value, out var parent))
+            {
+                return false;
+            }
+
+            if (string.Equals(parent.ProcessName, "steam", StringComparison.OrdinalIgnoreCase) &&
+                parent.ExecutablePath?.EndsWith("\\steam.exe", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return true;
+            }
+
+            parentId = parent.ParentProcessId;
+        }
+
+        return false;
+    }
+
+    private static bool IsSteamInstallRoot(Game game) =>
+        game.SourceType == GameSourceType.Steam ||
+        game.InstallRoot.Contains("\\steamapps\\common\\", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsAuxiliaryProcess(string processName) =>
+        processName.Contains("crashhandler", StringComparison.OrdinalIgnoreCase) ||
+        processName.Contains("crashreport", StringComparison.OrdinalIgnoreCase) ||
+        processName.Contains("crashpad", StringComparison.OrdinalIgnoreCase);
 
     private static bool PathEquals(string? left, string right) =>
         !string.IsNullOrWhiteSpace(left) &&

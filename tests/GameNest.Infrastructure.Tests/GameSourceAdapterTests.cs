@@ -105,6 +105,68 @@ public sealed class GameSourceAdapterTests
         Assert.Equal(GameCandidateConfidence.High, new GameCandidateScorer().Score(candidate, DateTimeOffset.UtcNow).Confidence);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SteamManifestIsRecognizedFromSteamAppsAndCommonRoots(bool useCommonRoot)
+    {
+        using var directory = TemporaryDirectory.Create();
+        var steamApps = Directory.CreateDirectory(Path.Combine(directory.Path, "SteamLibrary", "steamapps"));
+        await File.WriteAllTextAsync(
+            Path.Combine(steamApps.FullName, "appmanifest_100.acf"),
+            "\"AppState\" { \"appid\" \"100\" \"name\" \"Example Game\" \"installdir\" \"Example\" }",
+            TestContext.Current.CancellationToken);
+        var installRoot = Directory.CreateDirectory(Path.Combine(steamApps.FullName, "common", "Example"));
+        await File.WriteAllBytesAsync(
+            Path.Combine(installRoot.FullName, "ExampleGame.exe"),
+            new byte[1024 * 1024],
+            TestContext.Current.CancellationToken);
+
+        var adapter = new SteamGameSourceAdapter(NullLogger<SteamGameSourceAdapter>.Instance);
+        var rootPath = useCommonRoot
+            ? Path.Combine(steamApps.FullName, "common")
+            : steamApps.FullName;
+        var candidates = await adapter.ScanAsync(
+            CreateContext(rootPath),
+            null,
+            TestContext.Current.CancellationToken);
+
+        var candidate = Assert.Single(candidates);
+        Assert.Equal(GameCandidateSource.Steam, candidate.Source);
+        Assert.Equal("100", candidate.SourceGameId);
+        Assert.Equal(GameCandidateConfidence.High, new GameCandidateScorer().Score(candidate, DateTimeOffset.UtcNow).Confidence);
+    }
+
+    [Fact]
+    public async Task SteamManifestDoesNotFollowLibrariesOutsideConfiguredRoots()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var configuredSteamApps = Directory.CreateDirectory(Path.Combine(directory.Path, "Configured", "steamapps"));
+        var externalSteamApps = Directory.CreateDirectory(Path.Combine(directory.Path, "External", "steamapps"));
+        var externalLibrary = Path.GetDirectoryName(externalSteamApps.FullName)!;
+        await File.WriteAllTextAsync(
+            Path.Combine(configuredSteamApps.FullName, "libraryfolders.vdf"),
+            $"\"libraryfolders\" {{ \"0\" {{ \"path\" \"{externalLibrary.Replace("\\", "\\\\")}\" }} }}",
+            TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(externalSteamApps.FullName, "appmanifest_100.acf"),
+            "\"AppState\" { \"appid\" \"100\" \"name\" \"External Game\" \"installdir\" \"External\" }",
+            TestContext.Current.CancellationToken);
+        var externalInstall = Directory.CreateDirectory(Path.Combine(externalSteamApps.FullName, "common", "External"));
+        await File.WriteAllBytesAsync(
+            Path.Combine(externalInstall.FullName, "ExternalGame.exe"),
+            new byte[1024 * 1024],
+            TestContext.Current.CancellationToken);
+
+        var adapter = new SteamGameSourceAdapter(NullLogger<SteamGameSourceAdapter>.Instance);
+        var candidates = await adapter.ScanAsync(
+            CreateContext(Path.Combine(directory.Path, "Configured")),
+            null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Empty(candidates);
+    }
+
     [Fact]
     public async Task ShortcutAdapterSkipsTargetsOutsideConfiguredRoots()
     {

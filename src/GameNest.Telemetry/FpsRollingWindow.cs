@@ -67,29 +67,79 @@ public sealed class FpsRollingWindow(TimeSpan window)
 
 public sealed class FpsRollingAggregator(TimeSpan window)
 {
-    private readonly Dictionary<string, FpsRollingWindow> _windows = new(StringComparer.OrdinalIgnoreCase);
+    private readonly TimeSpan _window = window;
+    private readonly Dictionary<string, FpsRollingWindow> _timestampWindows = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, FpsIntervalRollingWindow> _intervalWindows = new(StringComparer.OrdinalIgnoreCase);
 
-    public double? Add(string swapChain, double timestampMilliseconds)
+    public double? Add(
+        string swapChain,
+        double timestampMilliseconds,
+        double? millisecondsBetweenPresents = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(swapChain);
-        foreach (var existingWindow in _windows.Values)
+        if (millisecondsBetweenPresents is > 0d and <= 2000d)
+        {
+            if (!_intervalWindows.TryGetValue(swapChain, out var intervalWindow))
+            {
+                intervalWindow = new FpsIntervalRollingWindow(_window);
+                _intervalWindows.Add(swapChain, intervalWindow);
+            }
+
+            return intervalWindow.Add(millisecondsBetweenPresents.Value);
+        }
+
+        foreach (var existingWindow in _timestampWindows.Values)
         {
             _ = existingWindow.Advance(timestampMilliseconds);
         }
 
-        if (!_windows.TryGetValue(swapChain, out var fpsWindow))
+        if (!_timestampWindows.TryGetValue(swapChain, out var fpsWindow))
         {
-            fpsWindow = new FpsRollingWindow(window);
-            _windows.Add(swapChain, fpsWindow);
+            fpsWindow = new FpsRollingWindow(_window);
+            _timestampWindows.Add(swapChain, fpsWindow);
         }
 
         _ = fpsWindow.Add(timestampMilliseconds);
         return Current;
     }
 
-    public double? Current => _windows.Values
+    public double? Current => _intervalWindows.Values
         .Select(static item => item.Current)
+        .Concat(_timestampWindows.Values.Select(static item => item.Current))
         .Where(static value => value is not null)
         .DefaultIfEmpty()
         .Max();
+}
+
+public sealed class FpsIntervalRollingWindow(TimeSpan window)
+{
+    private readonly Queue<double> _intervalsMilliseconds = new();
+    private readonly double _windowMilliseconds = ValidateWindow(window).TotalMilliseconds;
+    private double _totalMilliseconds;
+
+    public double? Add(double millisecondsBetweenPresents)
+    {
+        if (!double.IsFinite(millisecondsBetweenPresents) || millisecondsBetweenPresents <= 0d)
+        {
+            return Current;
+        }
+
+        _intervalsMilliseconds.Enqueue(millisecondsBetweenPresents);
+        _totalMilliseconds += millisecondsBetweenPresents;
+        while (_totalMilliseconds > _windowMilliseconds && _intervalsMilliseconds.TryDequeue(out var oldest))
+        {
+            _totalMilliseconds -= oldest;
+        }
+
+        return Current;
+    }
+
+    public double? Current => _totalMilliseconds <= 0d
+        ? null
+        : _intervalsMilliseconds.Count * 1000d / _totalMilliseconds;
+
+    private static TimeSpan ValidateWindow(TimeSpan value) =>
+        value <= TimeSpan.Zero
+            ? throw new ArgumentOutOfRangeException(nameof(value))
+            : value;
 }

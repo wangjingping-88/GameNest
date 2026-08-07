@@ -5,6 +5,20 @@ namespace GameNest.Telemetry.Tests;
 public sealed class FpsRollingWindowTests
 {
     [Fact]
+    public void IntervalWindowUsesPresentMonFrameIntervals()
+    {
+        var window = new FpsIntervalRollingWindow(TimeSpan.FromSeconds(1));
+
+        var first = window.Add(1000d / 60d);
+        var second = window.Add(1000d / 60d);
+
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.Equal(60, first.Value, precision: 6);
+        Assert.Equal(60, second.Value, precision: 6);
+    }
+
+    [Fact]
     public void OneSecondWindowCalculatesFrameRateAndPrunesOldFrames()
     {
         var window = new FpsRollingWindow(TimeSpan.FromSeconds(1));

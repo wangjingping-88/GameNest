@@ -18,7 +18,8 @@ public sealed record Game
         GameDiscoveryMetadata? discoveryMetadata = null,
         GameAsset? cover = null,
         IEnumerable<GameEditableField>? userEditedFields = null,
-        GameMetadataAttribution? metadataAttribution = null)
+        GameMetadataAttribution? metadataAttribution = null,
+        GameAsset? hero = null)
     {
         if (id == Guid.Empty)
         {
@@ -45,6 +46,11 @@ public sealed record Game
             throw new ArgumentException("封面资产必须属于当前游戏且类型为封面。", nameof(cover));
         }
 
+        if (hero is not null && (hero.GameId != id || hero.AssetType != GameAssetType.Hero))
+        {
+            throw new ArgumentException("主页背景资产必须属于当前游戏且类型为主页背景。", nameof(hero));
+        }
+
         Id = id;
         Title = title.Trim();
         SortTitle = Title.ToUpperInvariant();
@@ -62,6 +68,7 @@ public sealed record Game
         Cover = cover;
         UserEditedFields = new HashSet<GameEditableField>(userEditedFields ?? []);
         MetadataAttribution = metadataAttribution;
+        Hero = hero;
     }
 
     public Guid Id { get; }
@@ -98,6 +105,8 @@ public sealed record Game
 
     public GameMetadataAttribution? MetadataAttribution { get; }
 
+    public GameAsset? Hero { get; }
+
     public Game WithUserEdits(string title, string? description, string? arguments, string workingDirectory) =>
         new(
             Id,
@@ -132,7 +141,8 @@ public sealed record Game
                 GameEditableField.Arguments,
                 GameEditableField.WorkingDirectory,
             ]),
-            MetadataAttribution);
+            MetadataAttribution,
+            Hero);
 
     public Game WithFavorite(bool isFavorite) =>
         new(
@@ -151,7 +161,8 @@ public sealed record Game
             DiscoveryMetadata,
             Cover,
             UserEditedFields,
-            MetadataAttribution);
+            MetadataAttribution,
+            Hero);
 
     public Game WithLastPlayed(DateTimeOffset lastPlayedUtc) =>
         new(
@@ -170,7 +181,8 @@ public sealed record Game
             DiscoveryMetadata,
             Cover,
             UserEditedFields,
-            MetadataAttribution);
+            MetadataAttribution,
+            Hero);
 
     public Game WithCompletedSession(DateTimeOffset lastPlayedUtc, long durationSeconds) =>
         new(
@@ -189,7 +201,8 @@ public sealed record Game
             DiscoveryMetadata,
             Cover,
             UserEditedFields,
-            MetadataAttribution);
+            MetadataAttribution,
+            Hero);
 
     public Game WithIcon(GameAsset? icon) =>
         new(
@@ -208,7 +221,8 @@ public sealed record Game
             DiscoveryMetadata,
             Cover,
             UserEditedFields,
-            MetadataAttribution);
+            MetadataAttribution,
+            Hero);
 
     public Game WithCover(GameAsset? cover, bool isUserEdited) =>
         new(
@@ -229,7 +243,8 @@ public sealed record Game
             isUserEdited
                 ? UserEditedFields.Append(GameEditableField.Cover)
                 : UserEditedFields,
-            MetadataAttribution);
+            MetadataAttribution,
+            Hero);
 
     public Game WithMetadata(
         string? title,
@@ -255,7 +270,8 @@ public sealed record Game
             DiscoveryMetadata,
             Cover,
             UserEditedFields,
-            attribution);
+            attribution,
+            Hero);
 
     public Game WithMetadataSnapshot(
         string title,
@@ -277,7 +293,8 @@ public sealed record Game
             DiscoveryMetadata,
             Cover,
             UserEditedFields,
-            attribution);
+            attribution,
+            Hero);
 
     public Game WithAvailability(GameAvailability availability) =>
         new(
@@ -296,5 +313,6 @@ public sealed record Game
             DiscoveryMetadata,
             Cover,
             UserEditedFields,
-            MetadataAttribution);
+            MetadataAttribution,
+            Hero);
 }

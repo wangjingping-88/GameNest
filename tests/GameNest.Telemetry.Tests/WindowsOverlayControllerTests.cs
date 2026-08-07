@@ -11,7 +11,7 @@ public sealed class WindowsOverlayControllerTests
 {
     private const int GwlExstyle = -20;
     private const long RequiredExtendedStyles =
-        0x00000008L | 0x00000020L | 0x00000080L | 0x00080000L | 0x08000000L;
+        0x00000008L | 0x00000080L | 0x00080000L | 0x08000000L;
 
     [Fact]
     public async Task IndependentOverlayConnectsReceivesFrameAndShutsDown()

@@ -117,10 +117,34 @@ public sealed class SqliteGameLibraryRepositoryTests
         Assert.StartsWith(@"E:\", rebound.LaunchProfile.WorkingDirectory, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task HeroAssetPersistsAcrossUpdates()
+    {
+        using var directory = TemporaryDirectory.Create();
+        var paths = GameNestDataPaths.CreateForRoot(directory.Path);
+        using var initializer = CreateInitializer(paths);
+        var repository = new SqliteGameLibraryRepository(paths, initializer);
+        var game = CreateGame(8, includeHero: true);
+
+        await repository.AddAsync(game, TestContext.Current.CancellationToken);
+        var stored = Assert.Single(await repository.GetAllAsync(TestContext.Current.CancellationToken));
+
+        Assert.NotNull(stored.Hero);
+        Assert.Equal(GameAssetType.Hero, stored.Hero.AssetType);
+        Assert.Equal(Path.Combine(stored.InstallRoot, "hero.jpg"), stored.Hero.LocalPath);
+
+        await repository.UpdateAsync(stored.WithFavorite(true), TestContext.Current.CancellationToken);
+        var updated = Assert.Single(await repository.GetAllAsync(TestContext.Current.CancellationToken));
+
+        Assert.True(updated.IsFavorite);
+        Assert.NotNull(updated.Hero);
+        Assert.Equal(stored.Hero.Id, updated.Hero.Id);
+    }
+
     private static SqliteDatabaseInitializer CreateInitializer(GameNestDataPaths paths) =>
         new(paths, NullLogger<SqliteDatabaseInitializer>.Instance);
 
-    private static Game CreateGame(int index, bool includeIcon = false)
+    private static Game CreateGame(int index, bool includeIcon = false, bool includeHero = false)
     {
         var gameId = Guid.NewGuid();
         var executablePath = $@"D:\游戏 库\第 {index:00} 款 [测试]\Game #{index:00}.exe";
@@ -146,6 +170,17 @@ public sealed class SqliteGameLibraryRepositoryTests
                 64,
                 DateTimeOffset.UtcNow)
             : null;
+        var hero = includeHero
+            ? new GameAsset(
+                Guid.NewGuid(),
+                gameId,
+                GameAssetType.Hero,
+                Path.Combine(installRoot, "hero.jpg"),
+                executablePath,
+                3840,
+                2160,
+                DateTimeOffset.UtcNow)
+            : null;
 
         return new Game(
             gameId,
@@ -159,6 +194,7 @@ public sealed class SqliteGameLibraryRepositoryTests
             null,
             0,
             profile,
-            icon);
+            icon,
+            hero: hero);
     }
 }

@@ -494,15 +494,15 @@
                         x:Name="HomeCoverBackground"
                         Grid.RowSpan="5"
                         AutomationProperties.Name="首页最近游玩游戏封面背景"
-                        Opacity="0.82"
-                        Source="{Binding HeroGame.CoverPath, Converter={StaticResource LocalPathToBitmapImageConverter}, ConverterParameter=1920}"
+                        Opacity="1"
+                        Source="{Binding HeroGame.HeroPath, Converter={StaticResource LocalPathToBitmapImageConverter}, ConverterParameter=1920}"
                         Stretch="UniformToFill"
-                        Visibility="{Binding HeroGame.HasCover, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        Visibility="{Binding HeroGame.HasHero, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <Border
-                        Background="#B8141A22"
+                        Background="Transparent"
                         BorderThickness="0"
                         CornerRadius="0">
-                        <Grid ColumnDefinitions="3*,2*">
+                        <Grid>
                             <StackPanel
                                 Margin="40,24"
                                 HorizontalAlignment="Left"
@@ -544,7 +544,7 @@
                                 Spacing="12"
                                 Visibility="{Binding HasHeroGame, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock
-                                    Foreground="{ThemeResource GameNestAccentBrush}"
+                                    Foreground="#8EC8FF"
                                     FontSize="12"
                                     FontWeight="SemiBold"
                                     CharacterSpacing="110"
@@ -554,6 +554,7 @@
                                     FontFamily="Segoe UI Variable Display"
                                     FontSize="36"
                                     FontWeight="SemiBold"
+                                    Foreground="#F8FAFC"
                                     MaxLines="2"
                                     Text="{Binding HeroGame.Title}"
                                     TextTrimming="CharacterEllipsis"
@@ -562,7 +563,7 @@
                                     MaxWidth="540"
                                     MaxLines="2"
                                     FontSize="15"
-                                    Foreground="{ThemeResource GameNestSecondaryTextBrush}"
+                                    Foreground="#D6E0EA"
                                     Text="{Binding HeroGame.DescriptionText}"
                                     TextTrimming="CharacterEllipsis"
                                     TextWrapping="Wrap" />
@@ -570,8 +571,8 @@
                                     <Button
                                         MinWidth="128"
                                         AutomationProperties.Name="启动最近使用的游戏"
-                                        Command="{Binding HeroGame.LaunchCommand}"
-                                        Content="继续游玩"
+                                        Command="{Binding LaunchOrActivateHeroCommand}"
+                                        Content="{Binding HeroGame.LaunchButtonText}"
                                         Style="{StaticResource AccentButtonStyle}" />
                                     <Button
                                         AutomationProperties.Name="打开游戏库"
@@ -581,45 +582,6 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <Grid Grid.Column="1" IsHitTestVisible="False">
-                                <Image
-                                    AutomationProperties.Name="最近使用游戏的封面"
-                                    Opacity="0.32"
-                                    Source="{Binding HeroGame.CoverPath, Converter={StaticResource LocalPathToBitmapImageConverter}, ConverterParameter=720}"
-                                    Stretch="UniformToFill"
-                                    Visibility="{Binding HeroGame.HasCover, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                <Border
-                                    Width="176"
-                                    Height="176"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Background="{ThemeResource GameNestAccentSoftBrush}"
-                                    CornerRadius="88"
-                                    Opacity="0.92">
-                                    <FontIcon
-                                        FontSize="72"
-                                        Foreground="{ThemeResource GameNestAccentBrush}"
-                                        Glyph="&#xE7FC;"
-                                        Opacity="0.78" />
-                                </Border>
-                                <Border
-                                    Margin="0,0,26,30"
-                                    Padding="12,7"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Bottom"
-                                    Background="{ThemeResource GameNestSurfaceBrush}"
-                                    BorderBrush="{ThemeResource GameNestBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="16">
-                                    <StackPanel Orientation="Horizontal" Spacing="7">
-                                        <FontIcon
-                                            FontSize="13"
-                                            Foreground="{ThemeResource GameNestAccentBrush}"
-                                            Glyph="&#xE72E;" />
-                                        <TextBlock FontSize="12" Text="本地优先" />
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
                         </Grid>
                     </Border>
 

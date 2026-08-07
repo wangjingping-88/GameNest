@@ -43,7 +43,9 @@ public partial class App : Microsoft.UI.Xaml.Application, IDisposable
         }
 
         var viewModel = _services.GetRequiredService<MainWindowViewModel>();
-        _window = new MainWindow(viewModel);
+        _window = new MainWindow(
+            viewModel,
+            _services.GetRequiredService<IGameWindowLocator>());
         _window.Closed += HandleWindowClosed;
         if (TryGetOptionValue(commandLine, "--complete-update", out var completionPlan))
         {

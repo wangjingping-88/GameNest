@@ -76,6 +76,11 @@ public sealed class SqliteGameLibraryRepository(
             await UpsertAssetAsync(connection, (SqliteTransaction)transaction, game.Cover, cancellationToken)
                 .ConfigureAwait(false);
         }
+        if (game.Hero is not null)
+        {
+            await UpsertAssetAsync(connection, (SqliteTransaction)transaction, game.Hero, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -154,6 +159,11 @@ public sealed class SqliteGameLibraryRepository(
         if (game.Cover is not null)
         {
             await UpsertAssetAsync(connection, (SqliteTransaction)transaction, game.Cover, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        if (game.Hero is not null)
+        {
+            await UpsertAssetAsync(connection, (SqliteTransaction)transaction, game.Hero, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -340,11 +350,14 @@ public sealed class SqliteGameLibraryRepository(
                 icon.Id, icon.LocalPath, icon.Source, icon.Width, icon.Height,
                 icon.ContentHash, icon.UpdatedAtUtc,
                 cover.Id, cover.LocalPath, cover.Source, cover.Width, cover.Height,
-                cover.ContentHash, cover.UpdatedAtUtc
+                cover.ContentHash, cover.UpdatedAtUtc,
+                hero.Id, hero.LocalPath, hero.Source, hero.Width, hero.Height,
+                hero.ContentHash, hero.UpdatedAtUtc
             FROM Games g
             INNER JOIN LaunchProfiles lp ON lp.GameId = g.Id AND lp.IsDefault = 1
             LEFT JOIN GameAssets icon ON icon.GameId = g.Id AND icon.AssetType = 'Icon'
             LEFT JOIN GameAssets cover ON cover.GameId = g.Id AND cover.AssetType = 'Cover'
+            LEFT JOIN GameAssets hero ON hero.GameId = g.Id AND hero.AssetType = 'Hero'
             {{(predicate is null ? string.Empty : $"WHERE {predicate}")}}
             ORDER BY g.SortTitle;
             """;
@@ -368,6 +381,7 @@ public sealed class SqliteGameLibraryRepository(
             reader.GetInt32(27));
         var icon = ReadAsset(reader, 28, gameId, GameAssetType.Icon);
         var cover = ReadAsset(reader, 35, gameId, GameAssetType.Cover);
+        var hero = ReadAsset(reader, 42, gameId, GameAssetType.Hero);
         var editedFields = JsonSerializer.Deserialize<GameEditableField[]>(reader.GetString(13)) ?? [];
         var attribution = reader.IsDBNull(14)
             ? null
@@ -400,7 +414,8 @@ public sealed class SqliteGameLibraryRepository(
                     reader.GetInt32(7)),
             cover,
             editedFields,
-            attribution);
+            attribution,
+            hero);
     }
 
     private static async Task InsertGameAsync(

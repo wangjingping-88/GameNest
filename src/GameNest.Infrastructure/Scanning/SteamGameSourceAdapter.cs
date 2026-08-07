@@ -32,19 +32,23 @@ public sealed partial class SteamGameSourceAdapter(
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var libraryFoldersFiles = FindLibraryFolderFiles(context.Roots);
-        var libraries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var file in libraryFoldersFiles)
+        var steamAppsDirectories = FindSteamAppsDirectories(context.Roots);
+        foreach (var file in FindLibraryFolderFiles(steamAppsDirectories))
         {
             await context.PauseToken.WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 var steamApps = Path.GetDirectoryName(file)!;
-                libraries.Add(Path.GetDirectoryName(steamApps)!);
                 var text = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
                 foreach (Match match in SteamLibraryPathRegex().Matches(text))
                 {
-                    libraries.Add(match.Groups[1].Value.Replace("\\\\", "\\"));
+                    var libraryPath = match.Groups[1].Value.Replace("\\\\", "\\");
+                    var discoveredSteamApps = Path.Combine(libraryPath, "steamapps");
+                    if (FindRoot(context.Roots, discoveredSteamApps) is not null &&
+                        Directory.Exists(discoveredSteamApps))
+                    {
+                        steamAppsDirectories.Add(Path.GetFullPath(discoveredSteamApps));
+                    }
                 }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -55,10 +59,9 @@ public sealed partial class SteamGameSourceAdapter(
 
         var candidates = new List<DiscoveredGame>();
         long checkedDirectories = 0;
-        foreach (var library in libraries)
+        foreach (var steamApps in steamAppsDirectories)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var steamApps = Path.Combine(library, "steamapps");
             string[] manifests;
             try
             {
@@ -88,7 +91,8 @@ public sealed partial class SteamGameSourceAdapter(
                     }
 
                     var installRoot = Path.GetFullPath(Path.Combine(steamApps, "common", installDirectoryName));
-                    if (!Directory.Exists(installRoot) || IsExcluded(installRoot, context.ExcludedDirectories))
+                    var root = FindRoot(context.Roots, installRoot);
+                    if (root is null || !Directory.Exists(installRoot) || IsExcluded(installRoot, context.ExcludedDirectories))
                     {
                         continue;
                     }
@@ -114,10 +118,9 @@ public sealed partial class SteamGameSourceAdapter(
                     var evidence = isUnchanged
                         ? []
                         : ExecutableDiscoverySignals.Inspect(executablePath, siblingFiles, childDirectories);
-                    var root = FindRoot(context.Roots, executablePath);
                     candidates.Add(
                         new DiscoveredGame(
-                            root?.Id,
+                            root.Id,
                             Id,
                             GameCandidateSource.Steam,
                             appId,
@@ -126,7 +129,7 @@ public sealed partial class SteamGameSourceAdapter(
                             null,
                             directory,
                             installRoot,
-                            root?.VolumeIdentity,
+                            root.VolumeIdentity,
                             info.Length,
                             info.LastWriteTimeUtc,
                             evidence,
@@ -153,28 +156,45 @@ public sealed partial class SteamGameSourceAdapter(
         return candidates;
     }
 
-    private static string[] FindLibraryFolderFiles(IReadOnlyList<ScanRoot> roots)
+    private static HashSet<string> FindSteamAppsDirectories(IReadOnlyList<ScanRoot> roots)
     {
         var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        AddIfPresent(candidates, Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Steam", "steamapps", "libraryfolders.vdf"));
-        AddIfPresent(candidates, Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            "Steam", "steamapps", "libraryfolders.vdf"));
         foreach (var root in roots)
         {
-            AddIfPresent(candidates, Path.Combine(root.CurrentPath, "steamapps", "libraryfolders.vdf"));
-            AddIfPresent(candidates, Path.Combine(root.CurrentPath, "Steam", "steamapps", "libraryfolders.vdf"));
-            AddIfPresent(candidates, Path.Combine(root.CurrentPath, "SteamLibrary", "steamapps", "libraryfolders.vdf"));
+            var rootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root.CurrentPath));
+            var rootName = Path.GetFileName(rootPath);
+            var parentPath = Path.GetDirectoryName(rootPath);
+            var parentName = parentPath is null ? null : Path.GetFileName(parentPath);
+            if (rootName.Equals("common", StringComparison.OrdinalIgnoreCase) &&
+                parentName?.Equals("steamapps", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                AddIfDirectoryExists(candidates, parentPath!);
+                continue;
+            }
+
+            if (rootName.Equals("steamapps", StringComparison.OrdinalIgnoreCase))
+            {
+                AddIfDirectoryExists(candidates, rootPath);
+                continue;
+            }
+
+            AddIfDirectoryExists(candidates, Path.Combine(rootPath, "steamapps"));
+            AddIfDirectoryExists(candidates, Path.Combine(rootPath, "Steam", "steamapps"));
+            AddIfDirectoryExists(candidates, Path.Combine(rootPath, "SteamLibrary", "steamapps"));
         }
 
-        return candidates.ToArray();
+        return candidates;
     }
 
-    private static void AddIfPresent(HashSet<string> paths, string path)
+    private static string[] FindLibraryFolderFiles(IEnumerable<string> steamAppsDirectories) =>
+        steamAppsDirectories
+            .Select(steamApps => Path.Combine(steamApps, "libraryfolders.vdf"))
+            .Where(File.Exists)
+            .ToArray();
+
+    private static void AddIfDirectoryExists(HashSet<string> paths, string path)
     {
-        if (File.Exists(path))
+        if (Directory.Exists(path))
         {
             paths.Add(Path.GetFullPath(path));
         }
@@ -276,13 +296,21 @@ public sealed partial class SteamGameSourceAdapter(
             || value.Contains("\\tools\\", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static ScanRoot? FindRoot(IEnumerable<ScanRoot> roots, string path) =>
-        roots
-            .Where(root => path.StartsWith(
-                Path.TrimEndingDirectorySeparator(root.CurrentPath) + Path.DirectorySeparatorChar,
-                StringComparison.OrdinalIgnoreCase))
+    private static ScanRoot? FindRoot(IEnumerable<ScanRoot> roots, string path)
+    {
+        var normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        return roots
+            .Where(root =>
+            {
+                var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root.CurrentPath));
+                return normalizedPath.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase) ||
+                       normalizedPath.StartsWith(
+                           normalizedRoot + Path.DirectorySeparatorChar,
+                           StringComparison.OrdinalIgnoreCase);
+            })
             .OrderByDescending(static root => root.CurrentPath.Length)
             .FirstOrDefault();
+    }
 
     private static bool IsExcluded(string path, IEnumerable<string> exclusions) =>
         exclusions.Any(excluded => path.StartsWith(

@@ -66,4 +66,11 @@
       DestinationFiles="$(PublishDir)Tools\PresentMon\PresentMon-2.5.1-x64.exe"
       SkipUnchangedFiles="true" />
   </Target>
+  <Target Name="CopyWinUiResourceIndex" AfterTargets="Publish">
+    <Copy
+      Condition="'$(PublishDir)' != '' And Exists('$(OutDir)GameNest.App.pri')"
+      SourceFiles="$(OutDir)GameNest.App.pri"
+      DestinationFiles="$(PublishDir)GameNest.App.pri"
+      SkipUnchangedFiles="true" />
+  </Target>
 </Project>

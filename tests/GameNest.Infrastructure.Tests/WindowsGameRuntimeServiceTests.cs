@@ -85,6 +85,30 @@ public sealed class WindowsGameRuntimeServiceTests
     }
 
     [Fact]
+    public async Task CrashHandlerDescendantIsNotAdoptedAsAGameProcess()
+    {
+        var gameProcess = Process(160, null, @"D:\Games\Launcher.exe");
+        var crashHandler = Process(161, 160, @"D:\Games\UnityCrashHandler64.exe");
+        var snapshots = new ScriptedSnapshotProvider(
+            ProcessSnapshot.Empty,
+            Snapshot(gameProcess, crashHandler),
+            Snapshot(gameProcess, crashHandler));
+        await using var service = CreateService(
+            snapshots,
+            new FakeProcessController(160),
+            new RecordingRuntimeRepository());
+        var game = CreateGame(@"D:\Games\Launcher.exe");
+
+        await service.LaunchAsync(game, TestContext.Current.CancellationToken);
+        await Task.Delay(80, TestContext.Current.CancellationToken);
+
+        var runtime = service.GetRuntime(game.Id);
+        Assert.NotNull(runtime);
+        Assert.Equal(gameProcess.ProcessId, runtime.PrimaryProcessId);
+        Assert.DoesNotContain(runtime.Processes, process => process.ProcessId == crashHandler.ProcessId);
+    }
+
+    [Fact]
     public async Task LauncherMayExitBeforeFirstPostLaunchSnapshotWithoutEndingGame()
     {
         var child = Process(201, 200, @"D:\Games\RealGame.exe");
@@ -132,6 +156,68 @@ public sealed class WindowsGameRuntimeServiceTests
         Assert.Equal(GameProcessConfidence.Probable, runtime.Confidence);
         Assert.False(runtime.CanStop);
         Assert.Equal(GameStopOutcome.UnsafeTarget, stop.Outcome);
+    }
+
+    [Fact]
+    public async Task SteamProcessInsideInstallRootIsConfirmedWhenSteamDetachesIt()
+    {
+        var actualGame = Process(351, null, @"D:\Games\SteamGame.exe");
+        var snapshots = new ScriptedSnapshotProvider(
+            ProcessSnapshot.Empty,
+            Snapshot(actualGame),
+            Snapshot(actualGame));
+        await using var service = CreateService(
+            snapshots,
+            new FakeProcessController(350),
+            new RecordingRuntimeRepository());
+        var game = CreateGame(@"D:\Games\Launcher.exe", sourceType: GameSourceType.Steam);
+        var tracked = WaitForStatusAsync(
+            service,
+            runtime =>
+                runtime.GameId == game.Id &&
+                runtime.PrimaryProcessId == actualGame.ProcessId &&
+                runtime.Confidence == GameProcessConfidence.Confirmed);
+
+        await service.LaunchAsync(game, TestContext.Current.CancellationToken);
+        var runtime = await tracked.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        Assert.True(runtime.CanStop);
+        Assert.Contains(
+            runtime.Processes,
+            process => process.ProcessId == actualGame.ProcessId &&
+                       process.Confidence == GameProcessConfidence.Confirmed);
+    }
+
+    [Fact]
+    public async Task SteamClientChildInsideInstallRootIsConfirmedForManualGame()
+    {
+        var steam = new ProcessSnapshotEntry(
+            360,
+            null,
+            "steam",
+            @"D:\Steam\steam.exe",
+            ProcessStart.AddMilliseconds(360));
+        var actualGame = Process(361, steam.ProcessId, @"D:\Games\SteamGame.exe");
+        var snapshots = new ScriptedSnapshotProvider(
+            Snapshot(steam),
+            Snapshot(steam, actualGame),
+            Snapshot(steam, actualGame));
+        await using var service = CreateService(
+            snapshots,
+            new FakeProcessController(350),
+            new RecordingRuntimeRepository());
+        var game = CreateGame(@"D:\Games\Launcher.exe");
+        var tracked = WaitForStatusAsync(
+            service,
+            runtime =>
+                runtime.GameId == game.Id &&
+                runtime.PrimaryProcessId == actualGame.ProcessId &&
+                runtime.Confidence == GameProcessConfidence.Confirmed);
+
+        await service.LaunchAsync(game, TestContext.Current.CancellationToken);
+        var runtime = await tracked.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        Assert.True(runtime.CanStop);
     }
 
     [Fact]
@@ -194,7 +280,10 @@ public sealed class WindowsGameRuntimeServiceTests
                 TimeSpan.FromMilliseconds(100)),
             NullLogger<WindowsGameRuntimeService>.Instance);
 
-    private static Game CreateGame(string executablePath, int gracefulStopTimeoutSeconds = 10)
+    private static Game CreateGame(
+        string executablePath,
+        int gracefulStopTimeoutSeconds = 10,
+        GameSourceType sourceType = GameSourceType.ManualExecutable)
     {
         var gameId = Guid.NewGuid();
         var profile = new LaunchProfile(
@@ -213,7 +302,7 @@ public sealed class WindowsGameRuntimeServiceTests
             "运行测试",
             null,
             @"D:\Games",
-            GameSourceType.ManualExecutable,
+            sourceType,
             false,
             GameAvailability.Available,
             DateTimeOffset.UtcNow,

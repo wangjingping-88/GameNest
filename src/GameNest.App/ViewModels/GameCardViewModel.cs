@@ -20,6 +20,7 @@ public sealed partial class GameCardViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(RuntimeStatusText))]
     [NotifyPropertyChangedFor(nameof(RuntimeStatusGlyph))]
     [NotifyPropertyChangedFor(nameof(LaunchButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanLaunch))]
     [NotifyPropertyChangedFor(nameof(CanStop))]
     [NotifyPropertyChangedFor(nameof(IsSessionActive))]
     public partial GameRuntimeState RuntimeState { get; set; }
@@ -77,6 +78,10 @@ public sealed partial class GameCardViewModel : ObservableObject
     public bool HasCover => Model.Cover is not null;
 
     public bool HasNoCover => !HasCover;
+
+    public string? HeroPath => Model.Hero?.LocalPath ?? CoverPath;
+
+    public bool HasHero => HeroPath is not null;
 
     public bool IsCoverManuallyDisabled =>
         Model.UserEditedFields.Contains(GameEditableField.Cover);
@@ -141,6 +146,8 @@ public sealed partial class GameCardViewModel : ObservableObject
         _ => "启动游戏",
     };
 
+    public bool CanLaunch => RuntimeState == GameRuntimeState.NotRunning;
+
     public string ProcessConfidenceText => ProcessConfidence switch
     {
         GameProcessConfidence.Confirmed => "已确认游戏进程",
@@ -177,6 +184,8 @@ public sealed partial class GameCardViewModel : ObservableObject
         OnPropertyChanged(nameof(CoverPath));
         OnPropertyChanged(nameof(HasCover));
         OnPropertyChanged(nameof(HasNoCover));
+        OnPropertyChanged(nameof(HeroPath));
+        OnPropertyChanged(nameof(HasHero));
         OnPropertyChanged(nameof(DateAddedUtc));
         OnPropertyChanged(nameof(LastPlayedUtc));
         OnPropertyChanged(nameof(LastPlayedText));

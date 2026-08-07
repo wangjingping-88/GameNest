@@ -1,7 +1,6 @@
 using GameNest.App.ViewModels;
 using GameNest.Application;
 using GameNest.Domain;
-using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -10,7 +9,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 using Windows.UI;
-using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace GameNest.App;
 
@@ -18,18 +17,20 @@ public sealed partial class MainWindow : Window, IDisposable
 {
     private static readonly SizeInt32 DefaultWindowSize = new(1680, 1000);
     private readonly CancellationTokenSource _windowLifetime = new();
+    private readonly IGameWindowLocator _gameWindowLocator;
     private bool _isPickerOpen;
 
-    public MainWindow(MainWindowViewModel viewModel)
+    public MainWindow(MainWindowViewModel viewModel, IGameWindowLocator gameWindowLocator)
     {
         ViewModel = viewModel;
+        _gameWindowLocator = gameWindowLocator;
         InitializeComponent();
         ContentRoot.DataContext = ViewModel;
         ViewModel.UpdateInstallerStarted += HandleUpdateInstallerStarted;
         ViewModel.OpenUpdatePageRequested += HandleOpenUpdatePageRequested;
         ViewModel.FocusGameRequested += HandleFocusGameRequested;
+        ViewModel.ActivateGameRequested += HandleActivateGameRequested;
         ContentRoot.ActualThemeChanged += HandleActualThemeChanged;
-        HomeCoverBackground.Loaded += HandleHomeCoverLoaded;
 
         Title = "GameNest";
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Brand", "GameNest.ico"));
@@ -682,8 +683,8 @@ public sealed partial class MainWindow : Window, IDisposable
         ViewModel.UpdateInstallerStarted -= HandleUpdateInstallerStarted;
         ViewModel.OpenUpdatePageRequested -= HandleOpenUpdatePageRequested;
         ViewModel.FocusGameRequested -= HandleFocusGameRequested;
+        ViewModel.ActivateGameRequested -= HandleActivateGameRequested;
         ContentRoot.ActualThemeChanged -= HandleActualThemeChanged;
-        HomeCoverBackground.Loaded -= HandleHomeCoverLoaded;
         _windowLifetime.Cancel();
         Dispose();
     }
@@ -699,29 +700,46 @@ public sealed partial class MainWindow : Window, IDisposable
         });
     }
 
+    private async void HandleActivateGameRequested(GameRuntimeSnapshot runtime)
+    {
+        try
+        {
+            var gameWindow = await _gameWindowLocator.FindPrimaryWindowAsync(runtime, _windowLifetime.Token);
+            if (gameWindow is null || !ActivateGameWindow((nint)gameWindow.WindowHandle))
+            {
+                ViewModel.StatusMessage = "未找到可切换的游戏窗口。";
+            }
+        }
+        catch (OperationCanceledException) when (_windowLifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception)
+        {
+            ViewModel.StatusMessage = "无法切换到游戏窗口。";
+        }
+    }
+
+    private static bool ActivateGameWindow(nint window)
+    {
+        if (window == nint.Zero)
+        {
+            return false;
+        }
+
+        if (IsIconic(window))
+        {
+            _ = ShowWindowAsync(window, SwRestore);
+        }
+
+        _ = BringWindowToTop(window);
+        return SetForegroundWindow(window);
+    }
+
     private void HandleActualThemeChanged(FrameworkElement sender, object args)
     {
         _ = sender;
         _ = args;
         DispatcherQueue.TryEnqueue(ApplyTitleBarTheme);
-    }
-
-    private void HandleHomeCoverLoaded(object sender, RoutedEventArgs e)
-    {
-        _ = sender;
-        _ = e;
-        var visual = ElementCompositionPreview.GetElementVisual(HomeCoverBackground);
-        visual.CenterPoint = new Vector3(
-            (float)(HomeCoverBackground.ActualWidth / 2),
-            (float)(HomeCoverBackground.ActualHeight / 2),
-            0);
-        var animation = visual.Compositor.CreateVector3KeyFrameAnimation();
-        animation.InsertKeyFrame(0f, Vector3.One);
-        animation.InsertKeyFrame(0.5f, new Vector3(1.035f, 1.035f, 1f));
-        animation.InsertKeyFrame(1f, Vector3.One);
-        animation.Duration = TimeSpan.FromSeconds(18);
-        animation.IterationBehavior = Microsoft.UI.Composition.AnimationIterationBehavior.Forever;
-        visual.StartAnimation(nameof(visual.Scale), animation);
     }
 
     private void ApplyTitleBarTheme()
@@ -755,4 +773,22 @@ public sealed partial class MainWindow : Window, IDisposable
         _windowLifetime.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    private const int SwRestore = 9;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindowAsync(nint window, int command);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool BringWindowToTop(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(nint window);
 }

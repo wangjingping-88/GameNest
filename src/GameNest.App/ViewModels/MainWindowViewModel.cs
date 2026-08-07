@@ -289,6 +289,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public event Action<GameCardViewModel>? FocusGameRequested;
 
+    public event Action<GameRuntimeSnapshot>? ActivateGameRequested;
+
     public ObservableCollection<GameCardViewModel> Games { get; }
 
     public ObservableCollection<RecentPlayGroupViewModel> RecentPlayGroups { get; } = [];
@@ -790,6 +792,37 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private async Task LaunchOrActivateHeroAsync(CancellationToken cancellationToken)
+    {
+        var hero = HeroGame;
+        if (hero is null)
+        {
+            return;
+        }
+
+        if (hero.RuntimeState == GameRuntimeState.NotRunning)
+        {
+            await LaunchGameAsync(hero, cancellationToken);
+            return;
+        }
+
+        if (hero.RuntimeState != GameRuntimeState.Running)
+        {
+            StatusMessage = "游戏正在切换状态，请稍后再试。";
+            return;
+        }
+
+        var runtime = _gameLibraryService.GetRuntime(hero.Id);
+        if (runtime is null || runtime.State != GameRuntimeState.Running)
+        {
+            StatusMessage = "未找到正在运行的游戏进程。";
+            return;
+        }
+
+        ActivateGameRequested?.Invoke(runtime);
+    }
+
+    [RelayCommand]
     private void ToggleSelectionMode()
     {
         IsSelectionMode = !IsSelectionMode;
@@ -1074,13 +1107,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         try
         {
-            StatusMessage = null;
+            SelectedGame = card;
             await _gameLibraryService.LaunchAsync(card.Id, cancellationToken);
             var storedGames = await _gameLibraryService.GetGamesAsync(new(), cancellationToken);
             var stored = storedGames.First(game => game.Id == card.Id);
             card.Update(stored);
-            StatusMessage = $"已启动“{card.Title}”，正在识别实际游戏进程。";
-            ApplyFilter();
+            if (IsRecentPage)
+            {
+                // 最近游玩需要按启动时间重新排序并更新分组。
+                ApplyFilter();
+            }
+            else
+            {
+                // 游戏库与收藏页中的卡片引用未变，重建集合会使滚动位置回到顶部。
+                NotifyCollectionStateChanged();
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

@@ -33,8 +33,6 @@ public static class DependencyInjection
         services.AddSingleton<IGameCandidateScorer, GameCandidateScorer>();
         services.AddSingleton<IGameCandidateGrouper, GameCandidateGrouper>();
         services.AddSingleton<IGameSourceAdapter, SteamGameSourceAdapter>();
-        services.AddSingleton<IShortcutSourceLocator, WindowsShortcutSourceLocator>();
-        services.AddSingleton<IGameSourceAdapter, ShortcutGameSourceAdapter>();
         services.AddSingleton<IGameSourceAdapter, GenericExecutableGameSourceAdapter>();
         services.AddSingleton<IImageAssetCache, WindowsImageAssetCache>();
         services.AddSingleton<IGameAssetService, WindowsGameAssetService>();

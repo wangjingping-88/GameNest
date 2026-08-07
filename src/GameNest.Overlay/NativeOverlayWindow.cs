@@ -10,15 +10,16 @@ internal sealed class NativeOverlayWindow : IDisposable
     private const string WindowClassName = "GameNest.Overlay.Window";
     private const uint WsPopup = 0x80000000;
     private const uint WsExTopmost = 0x00000008;
-    private const uint WsExTransparent = 0x00000020;
     private const uint WsExToolwindow = 0x00000080;
     private const uint WsExLayered = 0x00080000;
     private const uint WsExNoactivate = 0x08000000;
     private const uint SwpNoactivate = 0x0010;
+    private const uint SwpNosize = 0x0001;
+    private const uint SwpNozorder = 0x0004;
     private const uint SwpShowwindow = 0x0040;
     private const uint LwaAlpha = 0x00000002;
     private const int SwHide = 0;
-    private const int HtTransparent = -1;
+    private const int HtClient = 1;
     private const int MaNoactivate = 3;
     private const uint WmDestroy = 0x0002;
     private const uint WmPaint = 0x000F;
@@ -26,6 +27,10 @@ internal sealed class NativeOverlayWindow : IDisposable
     private const uint WmEraseBkgnd = 0x0014;
     private const uint WmNchittest = 0x0084;
     private const uint WmMouseactivate = 0x0021;
+    private const uint WmMousemove = 0x0200;
+    private const uint WmLbuttondown = 0x0201;
+    private const uint WmLbuttonup = 0x0202;
+    private const uint WmCapturechanged = 0x0215;
     private const uint WmHotkey = 0x0312;
     private const uint WmAppMessage = 0x8001;
     private const int HotkeyId = 0x474E;
@@ -49,6 +54,13 @@ internal sealed class NativeOverlayWindow : IDisposable
     private bool _twoRows;
     private int _windowWidth;
     private int _windowHeight;
+    private int _windowLeft;
+    private int _windowTop;
+    private bool _hasDraggedPosition;
+    private bool _isDragging;
+    private Point _dragStartCursor;
+    private int _dragStartLeft;
+    private int _dragStartTop;
 
     public NativeOverlayWindow(Action<OverlayWireStatus> statusCallback)
     {
@@ -56,7 +68,7 @@ internal sealed class NativeOverlayWindow : IDisposable
         _ = SetProcessDpiAwarenessContext(new nint(-4));
         RegisterWindowClass();
         _window = CreateWindowExW(
-            WsExTopmost | WsExTransparent | WsExToolwindow | WsExLayered | WsExNoactivate,
+            WsExTopmost | WsExToolwindow | WsExLayered | WsExNoactivate,
             WindowClassName,
             "GameNest Overlay",
             WsPopup,
@@ -160,9 +172,19 @@ internal sealed class NativeOverlayWindow : IDisposable
             case WmEraseBkgnd:
                 return new nint(1);
             case WmNchittest:
-                return new nint(HtTransparent);
+                return new nint(HtClient);
             case WmMouseactivate:
                 return new nint(MaNoactivate);
+            case WmLbuttondown:
+                BeginDrag();
+                return nint.Zero;
+            case WmMousemove:
+                UpdateDrag();
+                return nint.Zero;
+            case WmLbuttonup:
+            case WmCapturechanged:
+                EndDrag();
+                return nint.Zero;
             case WmClose:
                 _ = DestroyWindow(_window);
                 return nint.Zero;
@@ -230,8 +252,15 @@ internal sealed class NativeOverlayWindow : IDisposable
         var top = position is OverlayPosition.TopLeft or OverlayPosition.TopRight
             ? frame.Top + margin
             : frame.Top + frame.Height - _windowHeight - margin;
-        left = Math.Clamp(left, frame.Left, Math.Max(frame.Left, frame.Left + frame.Width - _windowWidth));
-        top = Math.Clamp(top, frame.Top, Math.Max(frame.Top, frame.Top + frame.Height - _windowHeight));
+        if (_hasDraggedPosition)
+        {
+            left = _windowLeft;
+            top = _windowTop;
+        }
+
+        ClampToGameBounds(frame, ref left, ref top);
+        _windowLeft = left;
+        _windowTop = top;
 
         _ = SetLayeredWindowAttributes(
             _window,
@@ -251,6 +280,59 @@ internal sealed class NativeOverlayWindow : IDisposable
             SwpNoactivate | SwpShowwindow);
         _ = InvalidateRect(_window, nint.Zero, false);
         ApplyVisibility();
+    }
+
+    private void BeginDrag()
+    {
+        if (_frame?.IsVisible != true || !GetCursorPos(out _dragStartCursor))
+        {
+            return;
+        }
+
+        _isDragging = true;
+        _dragStartLeft = _windowLeft;
+        _dragStartTop = _windowTop;
+        _ = SetCapture(_window);
+    }
+
+    private void UpdateDrag()
+    {
+        if (!_isDragging || _frame is null || !GetCursorPos(out var cursor))
+        {
+            return;
+        }
+
+        var left = _dragStartLeft + cursor.X - _dragStartCursor.X;
+        var top = _dragStartTop + cursor.Y - _dragStartCursor.Y;
+        ClampToGameBounds(_frame, ref left, ref top);
+        _windowLeft = left;
+        _windowTop = top;
+        _hasDraggedPosition = true;
+        _ = SetWindowPos(
+            _window,
+            nint.Zero,
+            left,
+            top,
+            0,
+            0,
+            SwpNoactivate | SwpNosize | SwpNozorder);
+    }
+
+    private void EndDrag()
+    {
+        if (!_isDragging)
+        {
+            return;
+        }
+
+        _isDragging = false;
+        _ = ReleaseCapture();
+    }
+
+    private void ClampToGameBounds(OverlayWireFrame frame, ref int left, ref int top)
+    {
+        left = Math.Clamp(left, frame.Left, Math.Max(frame.Left, frame.Left + frame.Width - _windowWidth));
+        top = Math.Clamp(top, frame.Top, Math.Max(frame.Top, frame.Top + frame.Height - _windowHeight));
     }
 
     private void ConfigureHotkey(string value)
@@ -571,6 +653,17 @@ internal sealed class NativeOverlayWindow : IDisposable
         int width,
         int height,
         uint flags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetCursorPos(out Point point);
+
+    [DllImport("user32.dll")]
+    private static extern nint SetCapture(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReleaseCapture();
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
